@@ -32,29 +32,39 @@ class TripProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    // 1. Get parsed details from Gemini (Mock)
+    // Step 1 & 2: LLM extracts clean parameters
     final aiResult = await _aiService.parsePrompt(prompt);
-    
-    // 2. Create Trip record
+    final durationDays = (aiResult['durationDays'] as num?)?.toInt() ?? 2;
+    final destination = (aiResult['destination'] as String?)?.isNotEmpty == true
+        ? aiResult['destination'] as String
+        : 'Paris';
+    final transportMode = aiResult['transportMode'] as String? ?? 'Train';
+    final keySpot = aiResult['keySpot'] as String?;
+
+    // Create Trip record
     final trip = TripModel(
       id: _uuid.v4(),
-      title: aiResult['title'],
+      title: aiResult['title'] ?? '$destination $transportMode Trip',
       originalPrompt: prompt,
+      destinationName: destination,
       startDate: startDate,
-      endDate: startDate.add(Duration(days: aiResult['durationDays'] - 1)),
+      endDate: startDate.add(Duration(days: durationDays - 1)),
       createdAt: DateTime.now(),
       status: 'UPCOMING',
     );
     await _dbHelper.insertTrip(trip);
-    
-    // 3. Get activities from Amadeus (Mock)
-    final activities = await _travelService.fetchActivitiesForTrip(
-      trip.id,
-      aiResult['durationDays'],
-      startDate,
-    );
-    await _dbHelper.insertActivities(activities);
 
+    // Step 3 & 4: Search local SQLite database and generate chronological timeline
+    final activities = await _travelService.buildItinerary(
+      tripId: trip.id,
+      destination: destination,
+      durationDays: durationDays,
+      startDate: startDate,
+      transportMode: transportMode,
+      keySpot: keySpot,
+    );
+
+    await _dbHelper.insertActivities(activities);
     await loadTrips();
   }
 
@@ -73,8 +83,18 @@ class TripProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> toggleActivityCompletion(String activityId, String tripId) async {
+    await _dbHelper.toggleActivityCompletion(activityId);
+    await loadActivitiesForTrip(tripId);
+  }
+
   Future<void> startTrip(String tripId) async {
     await _dbHelper.updateTripStatus(tripId, 'ACTIVE');
+    await loadTrips();
+  }
+
+  Future<void> completeTrip(String tripId) async {
+    await _dbHelper.updateTripStatus(tripId, 'COMPLETED');
     await loadTrips();
   }
 }

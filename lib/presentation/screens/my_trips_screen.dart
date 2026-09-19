@@ -6,7 +6,7 @@ import '../../core/theme.dart';
 import 'itinerary_screen.dart';
 
 class MyTripsScreen extends StatefulWidget {
-  const MyTripsScreen({Key? key}) : super(key: key);
+  const MyTripsScreen({super.key});
 
   @override
   State<MyTripsScreen> createState() => _MyTripsScreenState();
@@ -19,7 +19,10 @@ class _MyTripsScreenState extends State<MyTripsScreen> with SingleTickerProvider
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    Future.microtask(() => Provider.of<TripProvider>(context, listen: false).loadTrips());
+    Future.microtask(() {
+      if (!mounted) return;
+      Provider.of<TripProvider>(context, listen: false).loadTrips();
+    });
   }
 
   @override

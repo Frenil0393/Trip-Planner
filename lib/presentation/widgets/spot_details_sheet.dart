@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 import '../../data/models/activity_model.dart';
 import '../../core/utils.dart';
+import 'app_image.dart';
 
 class SpotDetailsSheet extends StatelessWidget {
   final ActivityModel activity;
 
-  const SpotDetailsSheet({Key? key, required this.activity}) : super(key: key);
+  const SpotDetailsSheet({super.key, required this.activity});
 
   static void show(BuildContext context, ActivityModel activity) {
     showModalBottomSheet(
@@ -53,14 +54,12 @@ class SpotDetailsSheet extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      ClipRRect(
+                      AppImage(
+                        imagePath: activity.imageUrl ?? 'assets/images/spot_default.jpg',
+                        height: 250,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
                         borderRadius: BorderRadius.circular(18),
-                        child: Image.network(
-                          'https://images.unsplash.com/photo-1543349689-9a4d426bee8e?q=80&w=1000&auto=format&fit=crop', // Placeholder image based on activity type ideally
-                          height: 250,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                        ),
                       ),
                       const SizedBox(height: 24),
                       Text(

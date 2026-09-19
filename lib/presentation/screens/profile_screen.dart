@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme.dart';
+import '../../core/utils.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/trip_provider.dart';
 import '../../providers/ui_provider.dart';
 import 'auth_gate.dart';
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({Key? key}) : super(key: key);
+  const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final auth = Provider.of<AuthProvider>(context);
+    final tripProvider = Provider.of<TripProvider>(context);
+    final user = auth.currentUser;
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.surfaceTile1 : AppColors.canvasParchment,
@@ -25,25 +31,73 @@ class ProfileScreen extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 48,
-                  backgroundColor: AppColors.primary.withOpacity(0.1),
-                  child: const Icon(Icons.person, size: 48, color: AppColors.primary),
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+                  child: Text(
+                    user?.initials ?? 'U',
+                    style: const TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Traveler',
+                  user?.name ?? 'Guest Traveler',
                   style: Theme.of(context).textTheme.displayMedium,
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'traveler@example.com',
+                  user?.email ?? 'Not logged in',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: isDark ? AppColors.bodyMuted : AppColors.inkMuted80,
-                  ),
+                        color: isDark ? AppColors.bodyMuted : AppColors.inkMuted80,
+                      ),
                 ),
+                const SizedBox(height: 8),
+                if (user != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.surfaceTile3 : AppColors.canvas,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'Member since ${AppUtils.formatDate(user.createdAt)}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? AppColors.bodyMuted : AppColors.inkMuted80,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
-          const SizedBox(height: 48),
+          const SizedBox(height: 36),
+
+          // Stats row
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  context,
+                  title: 'Total Trips',
+                  value: '${tripProvider.trips.length}',
+                  isDark: isDark,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildStatCard(
+                  context,
+                  title: 'Upcoming',
+                  value: '${tripProvider.trips.where((t) => t.isUpcoming).length}',
+                  isDark: isDark,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 36),
+
           _buildSectionHeader(context, 'Preferences'),
           _buildUtilityCard(
             context,
@@ -52,10 +106,8 @@ class ProfileScreen extends StatelessWidget {
                 return SwitchListTile.adaptive(
                   title: Text('Dark Mode', style: Theme.of(context).textTheme.bodyLarge),
                   value: uiProvider.isDarkMode,
-                  onChanged: (val) {
-                    uiProvider.toggleTheme();
-                  },
-                  activeColor: AppColors.primary,
+                  onChanged: (val) => uiProvider.toggleTheme(),
+                  activeTrackColor: AppColors.primary,
                 );
               },
             ),
@@ -64,35 +116,57 @@ class ProfileScreen extends StatelessWidget {
           _buildSectionHeader(context, 'Account'),
           _buildUtilityCard(
             context,
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.payment),
-                  title: Text('Payment Methods', style: Theme.of(context).textTheme.bodyLarge),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () {},
-                ),
-                Divider(height: 1, color: isDark ? AppColors.surfaceTile3 : AppColors.dividerSoft),
-                ListTile(
-                  leading: const Icon(Icons.card_travel),
-                  title: Text('Travel Preferences', style: Theme.of(context).textTheme.bodyLarge),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () {},
-                ),
-              ],
+            child: ListTile(
+              title: Text('Currency', style: Theme.of(context).textTheme.bodyLarge),
+              trailing: Text('USD (\$)', style: Theme.of(context).textTheme.bodyMedium),
+              onTap: () {},
             ),
           ),
           const SizedBox(height: 48),
           Center(
             child: TextButton(
               onPressed: () {
-                Navigator.of(context).pushAndRemoveUntil(
+                auth.signOut();
+                Navigator.pushAndRemoveUntil(
+                  context,
                   MaterialPageRoute(builder: (_) => const AuthGate()),
                   (route) => false,
                 );
               },
-              child: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+              child: const Text('Sign Out', style: TextStyle(color: Colors.red, fontSize: 16)),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard(BuildContext context, {required String title, required String value, required bool isDark}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceTile2 : AppColors.canvas,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isDark ? Colors.transparent : AppColors.hairline,
+        ),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: isDark ? AppColors.bodyMuted : AppColors.inkMuted80,
+                ),
           ),
         ],
       ),
@@ -105,8 +179,8 @@ class ProfileScreen extends StatelessWidget {
       child: Text(
         title,
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          fontWeight: FontWeight.w600,
-        ),
+              fontWeight: FontWeight.w600,
+            ),
       ),
     );
   }

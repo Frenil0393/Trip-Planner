@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/theme.dart';
+import 'providers/auth_provider.dart';
 import 'providers/trip_provider.dart';
 import 'providers/ui_provider.dart';
 import 'presentation/screens/auth_gate.dart';
@@ -9,6 +10,7 @@ void main() {
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => TripProvider()),
         ChangeNotifierProvider(create: (_) => UiProvider()),
       ],
@@ -18,7 +20,7 @@ void main() {
 }
 
 class AITripPlannerApp extends StatelessWidget {
-  const AITripPlannerApp({Key? key}) : super(key: key);
+  const AITripPlannerApp({super.key});
 
   @override
   Widget build(BuildContext context) {
