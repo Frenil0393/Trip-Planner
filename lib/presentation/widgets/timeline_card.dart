@@ -96,8 +96,8 @@ class TimelineCard extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: activity.isCompleted
-              ? (isDark ? AppColors.surfaceTile2.withValues(alpha: 0.6) : AppColors.surfacePearl)
-              : Theme.of(context).cardColor,
+              ? (isDark ? AppColors.surfaceTile3 : AppColors.surfacePearl)
+              : (isDark ? AppColors.surfaceTile2 : AppColors.canvas),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: isCurrent
@@ -149,14 +149,14 @@ class TimelineCard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: isDark ? AppColors.canvas : AppColors.ink,
+                          color: isDark ? Colors.white : AppColors.ink,
                         ),
                       ),
                     ],
                   ),
                 ),
 
-                // Cost Tag
+                // Cost Tag (INR ₹ formatted)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
@@ -166,9 +166,7 @@ class TimelineCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    activity.cost > 0
-                        ? '\$${activity.cost.toStringAsFixed(2)}'
-                        : 'Free Entry',
+                    AppUtils.formatCurrency(activity.cost),
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,

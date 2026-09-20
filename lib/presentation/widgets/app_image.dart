@@ -81,7 +81,18 @@ class AppImage extends StatelessWidget {
         width: width,
         height: height,
         fit: fit,
-        errorBuilder: (context, error, stackTrace) => placeholder(),
+        errorBuilder: (context, error, stackTrace) {
+          if (imagePath != 'assets/images/spot_default.jpg') {
+            return Image.asset(
+              'assets/images/spot_default.jpg',
+              width: width,
+              height: height,
+              fit: fit,
+              errorBuilder: (c, e, s) => placeholder(),
+            );
+          }
+          return placeholder();
+        },
       );
     } else {
       imageWidget = placeholder();

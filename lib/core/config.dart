@@ -4,17 +4,22 @@
 /// via `--dart-define=GEMINI_API_KEY=your_key` during compilation.
 class AppConfig {
   /// Default Google Gemini API Key provided for the project.
-  /// Can be overridden at build time with `--dart-define=GEMINI_API_KEY=...`.
+  /// Can be overridden at build time with `--dart-define=GEMINI_API_KEY=...`
+  /// or dynamically updated in the Profile screen.
   static const String geminiApiKey = String.fromEnvironment(
     'GEMINI_API_KEY',
-    defaultValue: '',
+    defaultValue: 'YOUR_GEMINI_API_KEY_HERE',
   );
 
   /// Google Cloud Project identification.
-  static const String projectName = 'projects/623777684005';
-  static const String projectNumber = '623777684005';
-  static const String projectId = 'gen-lang-client-0521898417';
+  static const String projectName = 'projects/668343186409';
+  static const String projectNumber = '668343186409';
+  static const String projectId = '668343186409';
+
+  /// Friendly name for the credential
+  static const String keyName = 'Gemini API Key';
 
   /// Primary LLM Model name to use for itinerary generation.
-  static const String geminiModel = 'gemini-1.5-flash';
+  static const String geminiModel = 'gemini-2.5-flash';
 }
+

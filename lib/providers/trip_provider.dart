@@ -15,10 +15,24 @@ class TripProvider with ChangeNotifier {
   List<TripModel> _trips = [];
   List<ActivityModel> _currentActivities = [];
   bool _isLoading = false;
+  String _statusMessage = '';
+  AIExecutionResult? _lastExecutionResult;
 
   List<TripModel> get trips => _trips;
   List<ActivityModel> get currentActivities => _currentActivities;
   bool get isLoading => _isLoading;
+  String get statusMessage => _statusMessage;
+  AIExecutionResult? get lastExecutionResult => _lastExecutionResult;
+  String get currentApiKey => _aiService.apiKey;
+
+  void updateApiKey(String newKey) {
+    _aiService.updateApiKey(newKey.trim());
+    notifyListeners();
+  }
+
+  Future<Map<String, dynamic>> testGeminiConnection() async {
+    return await _aiService.testConnection();
+  }
 
   Future<void> loadTrips() async {
     _isLoading = true;
@@ -30,10 +44,17 @@ class TripProvider with ChangeNotifier {
 
   Future<void> createTrip(String prompt, DateTime startDate) async {
     _isLoading = true;
+    _statusMessage = 'Sending prompt to Google Gemini LLM...';
     notifyListeners();
 
-    // Step 1 & 2: LLM extracts clean parameters
-    final aiResult = await _aiService.parsePrompt(prompt);
+    // Step 1 & 2: LLM extracts clean parameters & captures raw JSON response
+    final execution = await _aiService.parsePromptWithDetails(prompt);
+    _lastExecutionResult = execution;
+
+    _statusMessage = 'Parsing LLM JSON response & scheduling itinerary...';
+    notifyListeners();
+
+    final aiResult = execution.parsedData;
     final durationDays = (aiResult['durationDays'] as num?)?.toInt() ?? 2;
     final destination = (aiResult['destination'] as String?)?.isNotEmpty == true
         ? aiResult['destination'] as String
@@ -41,7 +62,7 @@ class TripProvider with ChangeNotifier {
     final transportMode = aiResult['transportMode'] as String? ?? 'Train';
     final keySpot = aiResult['keySpot'] as String?;
 
-    // Create Trip record
+    // Create Trip record with LLM telemetry attached
     final trip = TripModel(
       id: _uuid.v4(),
       title: aiResult['title'] ?? '$destination $transportMode Trip',
@@ -51,6 +72,10 @@ class TripProvider with ChangeNotifier {
       endDate: startDate.add(Duration(days: durationDays - 1)),
       createdAt: DateTime.now(),
       status: 'UPCOMING',
+      rawJsonResponse: execution.rawJsonResponse,
+      llmModel: execution.modelUsed,
+      isLiveAi: execution.isLiveApi,
+      latencyMs: execution.latencyMs,
     );
     await _dbHelper.insertTrip(trip);
 
@@ -65,6 +90,7 @@ class TripProvider with ChangeNotifier {
     );
 
     await _dbHelper.insertActivities(activities);
+    _statusMessage = '';
     await loadTrips();
   }
 
@@ -95,6 +121,11 @@ class TripProvider with ChangeNotifier {
 
   Future<void> completeTrip(String tripId) async {
     await _dbHelper.updateTripStatus(tripId, 'COMPLETED');
+    await loadTrips();
+  }
+
+  Future<void> deleteTrip(String tripId) async {
+    await _dbHelper.deleteTrip(tripId);
     await loadTrips();
   }
 }

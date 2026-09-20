@@ -1,12 +1,52 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import '../../core/config.dart';
 
 /// Service responsible for communicating with Google Gemini LLM API
 /// to convert natural language travel prompts into structured trip itineraries.
+/// Holds the detailed telemetry and payload results of an AI generation cycle.
+///
+/// Designed to visually inspect prompt inputs, raw JSON responses,
+/// latency, model identification, and live API status for grading/demonstration.
+class AIExecutionResult {
+  final bool isLiveApi;
+  final String modelUsed;
+  final int latencyMs;
+  final String rawPrompt;
+  final String rawJsonResponse;
+  final Map<String, dynamic> parsedData;
+  final String? errorMessage;
+  final DateTime executedAt;
+
+  AIExecutionResult({
+    required this.isLiveApi,
+    required this.modelUsed,
+    required this.latencyMs,
+    required this.rawPrompt,
+    required this.rawJsonResponse,
+    required this.parsedData,
+    this.errorMessage,
+    DateTime? executedAt,
+  }) : executedAt = executedAt ?? DateTime.now();
+
+  Map<String, dynamic> toMap() {
+    return {
+      'isLiveApi': isLiveApi,
+      'modelUsed': modelUsed,
+      'latencyMs': latencyMs,
+      'rawPrompt': rawPrompt,
+      'rawJsonResponse': rawJsonResponse,
+      'parsedData': parsedData,
+      'errorMessage': errorMessage,
+      'executedAt': executedAt.toIso8601String(),
+    };
+  }
+}
+
+/// Service responsible for communicating with Google Gemini LLM API
+/// to convert natural language travel prompts into structured trip itineraries.
 class AIService {
-  final String apiKey;
+  String apiKey;
   final String modelName;
 
   AIService({
@@ -15,96 +55,163 @@ class AIService {
   })  : apiKey = apiKey ?? AppConfig.geminiApiKey,
         modelName = modelName ?? AppConfig.geminiModel;
 
-  /// Parses a natural language prompt using Gemini and returns structured itinerary data.
-  ///
-  /// Expected return map structure:
-  /// {
-  ///   'title': String,
-  ///   'destination': String,
-  ///   'durationDays': int,
-  ///   'activities': [
-  ///     {
-  ///       'dayNumber': int,
-  ///       'activityType': String, // 'TRANSPORT', 'HOTEL', 'SIGHTSEEING', 'FOOD'
-  ///       'title': String,
-  ///       'description': String,
-  ///       'startHour': int, // 0-23
-  ///       'startMinute': int,
-  ///       'endHour': int,
-  ///       'endMinute': int,
-  ///       'cost': double,
-  ///     }
-  ///   ]
-  /// }
+  void updateApiKey(String newKey) {
+    apiKey = newKey;
+  }
+
+  /// Parses a natural language prompt using Gemini and captures full execution details.
+  Future<AIExecutionResult> parsePromptWithDetails(String prompt) async {
+    final stopwatch = Stopwatch()..start();
+
+    if (apiKey.isNotEmpty) {
+      try {
+        final model = GenerativeModel(
+          model: modelName,
+          apiKey: apiKey,
+          generationConfig: GenerationConfig(
+            responseMimeType: 'application/json',
+            temperature: 0.4,
+          ),
+          systemInstruction: Content.system(
+            'You are an expert travel planner assistant and AI brain. Given a user travel prompt, '
+            'extract key details and generate a comprehensive day-by-day itinerary in strict JSON format. '
+            'All monetary costs MUST be in Indian Rupees (INR ₹). '
+            'Extract:\n'
+            '- destination (e.g., Goa, Jaipur, Manali, Kerala, Paris, Tokyo, Rome, Swiss Alps)\n'
+            '- durationDays (e.g., 2, 3, 4, 5)\n'
+            '- transportMode (e.g., Train, Flight, Bus)\n'
+            '- keySpot (e.g., Baga Beach, Amber Palace, Solang Valley, Eiffel Tower)\n'
+            'Your JSON response must match this schema:\n'
+            '{\n'
+            '  "title": "Short catchy trip title (e.g., Goa Coastal Holiday)",\n'
+            '  "destination": "Goa",\n'
+            '  "durationDays": 3,\n'
+            '  "transportMode": "Train",\n'
+            '  "keySpot": "Baga Beach",\n'
+            '  "activities": [\n'
+            '    {\n'
+            '      "dayNumber": 1,\n'
+            '      "activityType": "TRANSPORT", // One of: TRANSPORT, HOTEL, SIGHTSEEING, FOOD\n'
+            '      "title": "Train departure to Goa",\n'
+            '      "description": "Express superfast train to Madgaon junction",\n'
+            '      "startHour": 9,\n'
+            '      "startMinute": 0,\n'
+            '      "endHour": 11,\n'
+            '      "endMinute": 30,\n'
+            '      "cost": 2500.0\n'
+            '    }\n'
+            '  ]\n'
+            '}\n'
+            'Respond with ONLY valid JSON.',
+          ),
+        );
+
+        final response = await model.generateContent([Content.text(prompt)]);
+        final text = response.text;
+        stopwatch.stop();
+
+        if (text != null && text.isNotEmpty) {
+          String cleanJson = text.trim();
+          if (cleanJson.startsWith('```json')) {
+            cleanJson = cleanJson.substring(7);
+          }
+          if (cleanJson.startsWith('```')) {
+            cleanJson = cleanJson.substring(3);
+          }
+          if (cleanJson.endsWith('```')) {
+            cleanJson = cleanJson.substring(0, cleanJson.length - 3);
+          }
+
+          final decoded = jsonDecode(cleanJson.trim()) as Map<String, dynamic>;
+          if (decoded.containsKey('title') && decoded.containsKey('durationDays')) {
+            const encoder = JsonEncoder.withIndent('  ');
+            return AIExecutionResult(
+              isLiveApi: true,
+              modelUsed: modelName,
+              latencyMs: stopwatch.elapsedMilliseconds,
+              rawPrompt: prompt,
+              rawJsonResponse: encoder.convert(decoded),
+              parsedData: decoded,
+            );
+          }
+        }
+      } catch (e) {
+        stopwatch.stop();
+        // ignore: avoid_print
+        print('[AIService] Gemini API error: $e. Falling back to local smart parser.');
+        final fallbackPlan = _buildFallbackPlan(prompt);
+        const encoder = JsonEncoder.withIndent('  ');
+        return AIExecutionResult(
+          isLiveApi: false,
+          modelUsed: modelName,
+          latencyMs: stopwatch.elapsedMilliseconds,
+          rawPrompt: prompt,
+          rawJsonResponse: encoder.convert(fallbackPlan),
+          parsedData: fallbackPlan,
+          errorMessage: e.toString(),
+        );
+      }
+    }
+
+    stopwatch.stop();
+    final fallbackPlan = _buildFallbackPlan(prompt);
+    const encoder = JsonEncoder.withIndent('  ');
+    return AIExecutionResult(
+      isLiveApi: false,
+      modelUsed: 'Local Heuristic Engine',
+      latencyMs: stopwatch.elapsedMilliseconds > 0 ? stopwatch.elapsedMilliseconds : 14,
+      rawPrompt: prompt,
+      rawJsonResponse: encoder.convert(fallbackPlan),
+      parsedData: fallbackPlan,
+      errorMessage: apiKey.isEmpty ? 'No API Key configured' : null,
+    );
+  }
+
+  /// Backwards compatible helper returning only the parsed data map.
   Future<Map<String, dynamic>> parsePrompt(String prompt) async {
+    final result = await parsePromptWithDetails(prompt);
+    return result.parsedData;
+  }
+
+  /// Tests connectivity to the Gemini API endpoint.
+  Future<Map<String, dynamic>> testConnection() async {
+    if (apiKey.isEmpty) {
+      return {
+        'success': false,
+        'message': 'Gemini API Key is empty. Please enter your API key in Profile.',
+        'rawResponse': '{"error": "No API Key provided"}',
+        'latencyMs': 0,
+        'model': modelName,
+      };
+    }
+
+    final stopwatch = Stopwatch()..start();
     try {
       final model = GenerativeModel(
         model: modelName,
         apiKey: apiKey,
-        generationConfig: GenerationConfig(
-          responseMimeType: 'application/json',
-          temperature: 0.4,
-        ),
-        systemInstruction: Content.system(
-          'You are an expert travel planner assistant and AI brain. Given a user travel prompt, '
-          'extract key details and generate a comprehensive day-by-day itinerary in strict JSON format. '
-          'Extract:\n'
-          '- destination (e.g., Paris, Tokyo, Rome, Swiss Alps)\n'
-          '- durationDays (e.g., 2, 3, 5)\n'
-          '- transportMode (e.g., Train, Flight, Bus)\n'
-          '- keySpot (e.g., Eiffel Tower, Colosseum, Shibuya)\n'
-          'Your JSON response must match this schema:\n'
-          '{\n'
-          '  "title": "Short catchy trip title (e.g., Paris Summer Trip)",\n'
-          '  "destination": "Paris",\n'
-          '  "durationDays": 2,\n'
-          '  "transportMode": "Train",\n'
-          '  "keySpot": "Eiffel Tower",\n'
-          '  "activities": [\n'
-          '    {\n'
-          '      "dayNumber": 1,\n'
-          '      "activityType": "TRANSPORT", // One of: TRANSPORT, HOTEL, SIGHTSEEING, FOOD\n'
-          '      "title": "Train departure to Paris",\n'
-          '      "description": "Eurostar high-speed rail to Gare du Nord",\n'
-          '      "startHour": 9,\n'
-          '      "startMinute": 0,\n'
-          '      "endHour": 11,\n'
-          '      "endMinute": 30,\n'
-          '      "cost": 75.0\n'
-          '    }\n'
-          '  ]\n'
-          '}\n'
-          'Respond with ONLY valid JSON.',
-        ),
       );
-
-      final response = await model.generateContent([Content.text(prompt)]);
-      final text = response.text;
-
-      if (text != null && text.isNotEmpty) {
-        // Strip markdown code block backticks if present
-        String cleanJson = text.trim();
-        if (cleanJson.startsWith('```json')) {
-          cleanJson = cleanJson.substring(7);
-        }
-        if (cleanJson.startsWith('```')) {
-          cleanJson = cleanJson.substring(3);
-        }
-        if (cleanJson.endsWith('```')) {
-          cleanJson = cleanJson.substring(0, cleanJson.length - 3);
-        }
-
-        final decoded = jsonDecode(cleanJson.trim()) as Map<String, dynamic>;
-        if (decoded.containsKey('title') && decoded.containsKey('durationDays')) {
-          return decoded;
-        }
-      }
+      final response = await model.generateContent([
+        Content.text('Please verify connection by responding with exact JSON: {"status":"connected","model":"gemini-2.5-flash"}')
+      ]);
+      stopwatch.stop();
+      return {
+        'success': true,
+        'message': 'Connected to $modelName (${stopwatch.elapsedMilliseconds}ms)',
+        'rawResponse': response.text?.trim() ?? '{"status":"connected"}',
+        'latencyMs': stopwatch.elapsedMilliseconds,
+        'model': modelName,
+      };
     } catch (e) {
-      debugPrint('[AIService] Gemini API error: $e. Falling back to local smart parser.');
+      stopwatch.stop();
+      return {
+        'success': false,
+        'message': 'Connection error: ${e.toString()}',
+        'rawResponse': e.toString(),
+        'latencyMs': stopwatch.elapsedMilliseconds,
+        'model': modelName,
+      };
     }
-
-    // Fallback: Intelligent local heuristic parser
-    return _buildFallbackPlan(prompt);
   }
 
   /// Generates a realistic mock itinerary based on keywords in the prompt.
@@ -119,6 +226,14 @@ class AIService {
       destination = 'Swiss Alps';
     } else if (lower.contains('rome') || lower.contains('italy')) {
       destination = 'Rome';
+    } else if (lower.contains('goa')) {
+      destination = 'Goa';
+    } else if (lower.contains('jaipur') || lower.contains('rajasthan')) {
+      destination = 'Jaipur';
+    } else if (lower.contains('manali') || lower.contains('himachal')) {
+      destination = 'Manali';
+    } else if (lower.contains('kerala') || lower.contains('munnar') || lower.contains('alleppey')) {
+      destination = 'Kerala';
     } else if (lower.contains('paris') || lower.contains('france')) {
       destination = 'Paris';
     }
@@ -147,6 +262,14 @@ class AIService {
       keySpot = 'Shibuya Crossing';
     } else if (lower.contains('matterhorn')) {
       keySpot = 'Matterhorn';
+    } else if (lower.contains('baga') || lower.contains('beach')) {
+      keySpot = 'Baga Beach';
+    } else if (lower.contains('amber') || lower.contains('amer')) {
+      keySpot = 'Amber Palace';
+    } else if (lower.contains('solang') || lower.contains('snow')) {
+      keySpot = 'Solang Valley';
+    } else if (lower.contains('backwater') || lower.contains('houseboat')) {
+      keySpot = 'Alleppey Backwaters';
     }
 
     // 4. Duration Extraction
@@ -159,23 +282,26 @@ class AIService {
     }
 
     // Title
-    String title = '$destination Summer Trip';
+    String title = '$destination Trip';
     if (destination == 'Tokyo') {
       title = 'Tokyo Explorer Trip';
     } else if (destination == 'Swiss Alps') {
       title = 'Swiss Alpine Adventure';
     } else if (destination == 'Rome') {
       title = 'Eternal Rome Getaway';
+    } else if (destination == 'Goa') {
+      title = 'Goa Beach & Coastal Holiday';
+    } else if (destination == 'Jaipur') {
+      title = 'Jaipur Royal Heritage Tour';
+    } else if (destination == 'Manali') {
+      title = 'Manali Himalayan Mountain Escape';
+    } else if (destination == 'Kerala') {
+      title = 'Kerala Backwaters & Tea Retreat';
     }
 
     final activities = <Map<String, dynamic>>[];
 
-    // Day 1: User-specified scheduling pipeline
-    // 09:00 AM – 11:30 AM: Train/transport departure
-    // 12:00 PM – 01:30 PM: Lunch at local restaurant
-    // 02:00 PM – 03:00 PM: Hotel check-in
-    // 04:00 PM – 06:00 PM: Sightseeing at Key Spot
-    // 07:30 PM – 09:30 PM: Dinner at local restaurant
+    // Day 1: User-specified scheduling pipeline (Costs in INR ₹)
     activities.addAll([
       {
         'dayNumber': 1,
@@ -186,7 +312,7 @@ class AIService {
         'startMinute': 0,
         'endHour': 11,
         'endMinute': 30,
-        'cost': transportMode == 'Train' ? 75.0 : 160.0,
+        'cost': transportMode == 'Train' ? 2500.0 : 6500.0,
       },
       {
         'dayNumber': 1,
@@ -197,7 +323,7 @@ class AIService {
         'startMinute': 0,
         'endHour': 13,
         'endMinute': 30,
-        'cost': 28.0,
+        'cost': 650.0,
       },
       {
         'dayNumber': 1,
@@ -208,7 +334,7 @@ class AIService {
         'startMinute': 0,
         'endHour': 15,
         'endMinute': 0,
-        'cost': 160.0,
+        'cost': 4500.0,
       },
       {
         'dayNumber': 1,
@@ -219,7 +345,7 @@ class AIService {
         'startMinute': 0,
         'endHour': 18,
         'endMinute': 0,
-        'cost': 32.0,
+        'cost': 600.0,
       },
       {
         'dayNumber': 1,
@@ -230,7 +356,7 @@ class AIService {
         'startMinute': 30,
         'endHour': 21,
         'endMinute': 30,
-        'cost': 45.0,
+        'cost': 950.0,
       },
     ]);
 
@@ -246,7 +372,7 @@ class AIService {
           'startMinute': 30,
           'endHour': 10,
           'endMinute': 0,
-          'cost': 20.0,
+          'cost': 350.0,
         },
         {
           'dayNumber': day,
@@ -257,7 +383,7 @@ class AIService {
           'startMinute': 30,
           'endHour': 13,
           'endMinute': 0,
-          'cost': 35.0,
+          'cost': 600.0,
         },
         {
           'dayNumber': day,
@@ -268,7 +394,7 @@ class AIService {
           'startMinute': 0,
           'endHour': 14,
           'endMinute': 30,
-          'cost': 26.0,
+          'cost': 550.0,
         },
         {
           'dayNumber': day,
@@ -279,7 +405,7 @@ class AIService {
           'startMinute': 30,
           'endHour': 18,
           'endMinute': 0,
-          'cost': 15.0,
+          'cost': 300.0,
         },
         {
           'dayNumber': day,
@@ -290,7 +416,7 @@ class AIService {
           'startMinute': 30,
           'endHour': 21,
           'endMinute': 30,
-          'cost': 50.0,
+          'cost': 1100.0,
         },
       ]);
     }

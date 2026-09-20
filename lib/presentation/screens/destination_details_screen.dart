@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme.dart';
+import '../../core/utils.dart';
 import '../../data/models/destination_model.dart';
 import '../../providers/trip_provider.dart';
 import '../widgets/app_image.dart';
+import 'itinerary_screen.dart';
 import 'my_trips_screen.dart';
 
-class DestinationDetailsScreen extends StatelessWidget {
+class DestinationDetailsScreen extends StatefulWidget {
   final String destinationName;
   final DestinationModel? destination;
 
@@ -17,9 +19,22 @@ class DestinationDetailsScreen extends StatelessWidget {
   });
 
   @override
+  State<DestinationDetailsScreen> createState() => _DestinationDetailsScreenState();
+}
+
+class _DestinationDetailsScreenState extends State<DestinationDetailsScreen> {
+  late DateTime _departureDate;
+
+  @override
+  void initState() {
+    super.initState();
+    _departureDate = DateTime.now().add(const Duration(days: 7));
+  }
+
+  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final dest = destination ?? DestinationModel.findByName(destinationName);
+    final dest = widget.destination ?? DestinationModel.findByName(widget.destinationName);
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.surfaceTile1 : AppColors.canvas,
@@ -91,25 +106,98 @@ class DestinationDetailsScreen extends StatelessWidget {
             ),
           ),
 
+          // Quick Stats Pill Row
+          SliverToBoxAdapter(
+            child: Container(
+              color: isDark ? AppColors.surfaceTile1 : AppColors.canvas,
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 24.0),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildStatPill(
+                      icon: Icons.star,
+                      label: '${dest.rating} Rating',
+                      color: const Color(0xFFFF9500),
+                      isDark: isDark,
+                    ),
+                    const SizedBox(width: 12),
+                    _buildStatPill(
+                      icon: Icons.wb_sunny_outlined,
+                      label: dest.bestTimeToVisit,
+                      color: AppColors.primary,
+                      isDark: isDark,
+                    ),
+                    const SizedBox(width: 12),
+                    _buildStatPill(
+                      icon: Icons.payments_outlined,
+                      label: 'Currency: ${dest.currency}',
+                      color: const Color(0xFF34C759),
+                      isDark: isDark,
+                    ),
+                    if (dest.tags.isNotEmpty) ...[
+                      const SizedBox(width: 12),
+                      ...dest.tags.map(
+                        (tag) => Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: isDark ? AppColors.surfaceTile2 : AppColors.surfacePearl,
+                              borderRadius: BorderRadius.circular(9999),
+                              border: Border.all(
+                                color: isDark ? Colors.white10 : AppColors.hairline,
+                              ),
+                            ),
+                            child: Text(
+                              tag,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? AppColors.canvas : AppColors.ink,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+
           // Must-See Spots Section
           if (dest.spots.isNotEmpty)
             SliverToBoxAdapter(
               child: Container(
                 color: isDark ? AppColors.surfaceTile2 : AppColors.canvasParchment,
-                padding: const EdgeInsets.symmetric(vertical: 64.0),
+                padding: const EdgeInsets.symmetric(vertical: 48.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                      child: Text(
-                        'Must-See Spots',
-                        style: Theme.of(context).textTheme.displayMedium,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Must-See Spots',
+                            style: Theme.of(context).textTheme.displayMedium,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Iconic landmarks and essential attractions in ${dest.name}.',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: isDark ? AppColors.bodyMuted : AppColors.inkMuted80,
+                                ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 24),
                     SizedBox(
-                      height: 280,
+                      height: 290,
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
                         padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -122,6 +210,7 @@ class DestinationDetailsScreen extends StatelessWidget {
                             description: spot.description,
                             imageUrl: spot.imageUrl,
                             tag: spot.category,
+                            rating: spot.rating,
                           );
                         },
                       ),
@@ -136,20 +225,32 @@ class DestinationDetailsScreen extends StatelessWidget {
             SliverToBoxAdapter(
               child: Container(
                 color: isDark ? AppColors.surfaceTile1 : AppColors.canvas,
-                padding: const EdgeInsets.symmetric(vertical: 64.0),
+                padding: const EdgeInsets.symmetric(vertical: 48.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                      child: Text(
-                        'Top Dining',
-                        style: Theme.of(context).textTheme.displayMedium,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Top Dining & Cuisine',
+                            style: Theme.of(context).textTheme.displayMedium,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Authentic gastronomic spots and acclaimed eateries.',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: isDark ? AppColors.bodyMuted : AppColors.inkMuted80,
+                                ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 24),
                     SizedBox(
-                      height: 280,
+                      height: 290,
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
                         padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -162,6 +263,62 @@ class DestinationDetailsScreen extends StatelessWidget {
                             description: restaurant.description,
                             imageUrl: restaurant.imageUrl,
                             tag: restaurant.cuisine,
+                            priceText: restaurant.priceRange,
+                            rating: restaurant.rating,
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // Accommodations / Where to Stay
+          if (dest.hotels.isNotEmpty)
+            SliverToBoxAdapter(
+              child: Container(
+                color: isDark ? AppColors.surfaceTile2 : AppColors.canvasParchment,
+                padding: const EdgeInsets.symmetric(vertical: 48.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Where to Stay',
+                            style: Theme.of(context).textTheme.displayMedium,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Curated boutique accommodations and luxury retreats.',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: isDark ? AppColors.bodyMuted : AppColors.inkMuted80,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      height: 290,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        itemCount: dest.hotels.length,
+                        itemBuilder: (context, index) {
+                          final hotel = dest.hotels[index];
+                          return _buildSpotCard(
+                            context,
+                            title: hotel.title,
+                            description: hotel.description,
+                            imageUrl: hotel.imageUrl,
+                            tag: 'Accommodation',
+                            priceText: '${AppUtils.formatCurrency(hotel.pricePerNight)} / night',
+                            rating: hotel.rating,
                           );
                         },
                       ),
@@ -172,27 +329,179 @@ class DestinationDetailsScreen extends StatelessWidget {
             ),
         ],
       ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
-          child: ElevatedButton.icon(
-            onPressed: () {
-              final prompt = 'Plan a 3-day travel itinerary to ${dest.name} exploring top attractions, culture, and dining.';
-              final startDate = DateTime.now().add(const Duration(days: 7));
-              final navigator = Navigator.of(context);
-              Provider.of<TripProvider>(context, listen: false).createTrip(prompt, startDate).then((_) {
-                navigator.push(
-                  MaterialPageRoute(builder: (_) => const MyTripsScreen()),
-                );
-              });
-            },
-            icon: const Icon(Icons.auto_awesome),
-            label: Text('Plan a Trip to ${dest.name} with AI'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 14.0),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.surfaceBlack : AppColors.canvas,
+          border: Border(
+            top: BorderSide(
+              color: isDark ? Colors.white12 : AppColors.hairline,
+              width: 1,
             ),
           ),
         ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Interactive Departure Date Pill
+              InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () async {
+                  final now = DateTime.now();
+                  final firstAllowed = DateTime(now.year, now.month, now.day);
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: _departureDate.isBefore(firstAllowed) ? firstAllowed : _departureDate,
+                    firstDate: firstAllowed,
+                    lastDate: now.add(const Duration(days: 365)),
+                    helpText: 'SELECT DEPARTURE DATE',
+                    confirmText: 'SET DEPARTURE',
+                  );
+                  if (picked != null) {
+                    setState(() => _departureDate = picked);
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.surfaceTile2 : AppColors.surfacePearl,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isDark ? Colors.white12 : AppColors.hairline,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_month_outlined,
+                        size: 16,
+                        color: isDark ? AppColors.primaryOnDark : AppColors.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Departure: ',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: isDark ? AppColors.bodyMuted : AppColors.inkMuted80,
+                        ),
+                      ),
+                      Text(
+                        AppUtils.formatDepartureDate(_departureDate),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? Colors.white : AppColors.ink,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        'Change',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? AppColors.primaryOnDark : AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Action button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    final prompt = 'Plan a 3-day travel itinerary to ${dest.name} exploring top attractions, culture, and dining.';
+                    final tripProvider = Provider.of<TripProvider>(context, listen: false);
+                    
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (ctx) => Center(
+                        child: Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24.0),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const CircularProgressIndicator(),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Crafting itinerary for ${dest.name}...',
+                                  style: Theme.of(context).textTheme.bodyLarge,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+
+                    tripProvider.createTrip(prompt, _departureDate).then((_) {
+                      if (!context.mounted) return;
+                      Navigator.pop(context); // Dismiss loading dialog
+                      if (tripProvider.trips.isNotEmpty) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ItineraryScreen(trip: tripProvider.trips.last),
+                          ),
+                        );
+                      } else {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const MyTripsScreen()),
+                        );
+                      }
+                    });
+                  },
+                  icon: const Icon(Icons.auto_awesome, size: 20),
+                  label: Text('Plan a 3-Day Trip to ${dest.name} with AI'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatPill({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required bool isDark,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceTile2 : AppColors.surfacePearl,
+        borderRadius: BorderRadius.circular(9999),
+        border: Border.all(
+          color: isDark ? Colors.white10 : AppColors.hairline,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: isDark ? AppColors.canvas : AppColors.ink,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -203,11 +512,13 @@ class DestinationDetailsScreen extends StatelessWidget {
     required String description,
     required String imageUrl,
     String? tag,
+    String? priceText,
+    double? rating,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      width: 220,
-      margin: const EdgeInsets.only(right: 24),
+      width: 240,
+      margin: const EdgeInsets.only(right: 20),
       decoration: BoxDecoration(
         color: isDark ? AppColors.surfaceTile3 : AppColors.canvas,
         borderRadius: BorderRadius.circular(18),
@@ -220,32 +531,59 @@ class DestinationDetailsScreen extends StatelessWidget {
         children: [
           AppImage(
             imagePath: imageUrl,
-            height: 160,
+            height: 150,
             width: double.infinity,
             fit: BoxFit.cover,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
           ),
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(14.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (tag != null && tag.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4.0),
-                    child: Text(
-                      tag.toUpperCase(),
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.8,
-                        color: AppColors.primary,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    if (tag != null && tag.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          tag.toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.6,
+                            color: AppColors.primary,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
+                    if (rating != null)
+                      Row(
+                        children: [
+                          const Icon(Icons.star, size: 12, color: Color(0xFFFF9500)),
+                          const SizedBox(width: 3),
+                          Text(
+                            rating.toStringAsFixed(1),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
                 Text(
                   title,
-                  style: Theme.of(context).textTheme.bodyLarge,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -254,10 +592,22 @@ class DestinationDetailsScreen extends StatelessWidget {
                   description,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: isDark ? AppColors.bodyMuted : AppColors.inkMuted80,
+                    fontSize: 12,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
+                if (priceText != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    priceText,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

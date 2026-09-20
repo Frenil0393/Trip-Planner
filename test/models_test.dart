@@ -14,7 +14,7 @@ void main() {
 
       final tokyo = DestinationModel.findByName('tokyo');
       expect(tokyo.name, 'Tokyo');
-      expect(tokyo.currency, 'JPY');
+      expect(tokyo.currency, 'INR (₹)');
 
       // Fallback lookup
       final custom = DestinationModel.findByName('Reykjavik');

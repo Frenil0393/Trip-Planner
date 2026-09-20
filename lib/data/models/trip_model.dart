@@ -92,6 +92,18 @@ class TripModel {
   /// Optional in-memory list of scheduled activities for this trip.
   final List<ActivityModel> activities;
 
+  /// Raw JSON string returned by the LLM (or fallback engine).
+  final String? rawJsonResponse;
+
+  /// Name of the LLM model used (e.g. 'gemini-1.5-flash').
+  final String? llmModel;
+
+  /// Flag indicating if generated via live Gemini API call or local fallback.
+  final bool isLiveAi;
+
+  /// Latency in milliseconds for LLM round-trip.
+  final int latencyMs;
+
   TripModel({
     required this.id,
     required this.title,
@@ -105,6 +117,10 @@ class TripModel {
     this.estimatedBudget,
     this.coverImageUrl,
     this.activities = const [],
+    this.rawJsonResponse,
+    this.llmModel,
+    this.isLiveAi = false,
+    this.latencyMs = 0,
   });
 
   // --------------------------------------------------------------------------
@@ -159,6 +175,10 @@ class TripModel {
     double? estimatedBudget,
     String? coverImageUrl,
     List<ActivityModel>? activities,
+    String? rawJsonResponse,
+    String? llmModel,
+    bool? isLiveAi,
+    int? latencyMs,
   }) {
     return TripModel(
       id: id ?? this.id,
@@ -173,6 +193,10 @@ class TripModel {
       estimatedBudget: estimatedBudget ?? this.estimatedBudget,
       coverImageUrl: coverImageUrl ?? this.coverImageUrl,
       activities: activities ?? this.activities,
+      rawJsonResponse: rawJsonResponse ?? this.rawJsonResponse,
+      llmModel: llmModel ?? this.llmModel,
+      isLiveAi: isLiveAi ?? this.isLiveAi,
+      latencyMs: latencyMs ?? this.latencyMs,
     );
   }
 
@@ -194,6 +218,10 @@ class TripModel {
       'status': status,
       'estimated_budget': estimatedBudget,
       'cover_image_url': coverImageUrl,
+      'raw_json_response': rawJsonResponse,
+      'llm_model': llmModel,
+      'is_live_ai': isLiveAi ? 1 : 0,
+      'latency_ms': latencyMs,
     };
   }
 
@@ -228,6 +256,10 @@ class TripModel {
               : null),
       coverImageUrl: (map['cover_image_url'] ?? map['coverImageUrl']) as String?,
       activities: activities,
+      rawJsonResponse: (map['raw_json_response'] ?? map['rawJsonResponse']) as String?,
+      llmModel: (map['llm_model'] ?? map['llmModel']) as String?,
+      isLiveAi: (map['is_live_ai'] == 1 || map['is_live_ai'] == true || map['isLiveAi'] == true),
+      latencyMs: (map['latency_ms'] ?? map['latencyMs'] ?? 0) as int,
     );
   }
 

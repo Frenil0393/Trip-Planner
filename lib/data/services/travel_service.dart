@@ -76,7 +76,7 @@ class TravelService {
             endTime: DateTime(currentDay.year, currentDay.month, currentDay.day, 11, 30),
             cost: transport.cost,
             location: '$destination Central Station / Airport',
-            imageUrl: 'assets/images/spot_default.jpg',
+            imageUrl: _getTransportImage(transport.mode, transport.title),
           ),
           // 12:00 PM – 01:30 PM: FOOD (Lunch)
           ActivityModel(
@@ -90,7 +90,7 @@ class TravelService {
             endTime: DateTime(currentDay.year, currentDay.month, currentDay.day, 13, 30),
             cost: lunch.averageCost,
             location: '$destination City Center',
-            imageUrl: 'assets/images/spot_default.jpg',
+            imageUrl: 'assets/images/dining_default.jpg',
             notes: 'Meal: Lunch',
           ),
           // 02:00 PM – 03:00 PM: HOTEL (Check-in)
@@ -105,7 +105,7 @@ class TravelService {
             endTime: DateTime(currentDay.year, currentDay.month, currentDay.day, 15, 0),
             cost: hotel.costPerNight,
             location: hotel.name,
-            imageUrl: 'assets/images/spot_default.jpg',
+            imageUrl: 'assets/images/hotel_default.jpg',
             notes: 'Hotel Stay',
           ),
           // 04:00 PM – 06:00 PM: SIGHTSEEING (Key Spot)
@@ -118,10 +118,12 @@ class TravelService {
             description: primarySpot != null ? primarySpot.description : 'Top points of interest and landmarks.',
             startTime: DateTime(currentDay.year, currentDay.month, currentDay.day, 16, 0),
             endTime: DateTime(currentDay.year, currentDay.month, currentDay.day, 18, 0),
-            cost: primarySpot?.entryFee ?? 25.0,
+            cost: primarySpot?.entryFee ?? 500.0,
             location: primarySpot?.name ?? destination,
-            imageUrl: 'assets/images/spot_default.jpg',
-            notes: 'Entry Fee: \$${(primarySpot?.entryFee ?? 25.0).toStringAsFixed(2)}',
+            imageUrl: _getSpotImage(primarySpot?.name ?? destination, destination),
+            notes: (primarySpot?.entryFee ?? 0) > 0
+                ? 'Entry Fee: ₹${(primarySpot?.entryFee ?? 500.0).toInt()}'
+                : 'Free Admission',
           ),
           // 07:30 PM – 09:30 PM: FOOD (Dinner)
           ActivityModel(
@@ -135,7 +137,7 @@ class TravelService {
             endTime: DateTime(currentDay.year, currentDay.month, currentDay.day, 21, 30),
             cost: dinner.averageCost,
             location: dinner.restaurantName,
-            imageUrl: 'assets/images/spot_default.jpg',
+            imageUrl: 'assets/images/dining_default.jpg',
             notes: 'Meal: Dinner',
           ),
         ]);
@@ -154,12 +156,12 @@ class TravelService {
             dayNumber: day,
             activityType: 'HOTEL',
             title: 'Breakfast at ${hotel.name}',
-            description: 'Continental artisan breakfast and preparation for the day.',
+            description: 'Morning breakfast and preparation for the day.',
             startTime: DateTime(currentDay.year, currentDay.month, currentDay.day, 8, 30),
             endTime: DateTime(currentDay.year, currentDay.month, currentDay.day, 10, 0),
-            cost: 20.0,
+            cost: 350.0,
             location: hotel.name,
-            imageUrl: 'assets/images/spot_default.jpg',
+            imageUrl: 'assets/images/hotel_default.jpg',
           ),
           // 10:30 AM – 01:00 PM: SIGHTSEEING
           ActivityModel(
@@ -173,8 +175,10 @@ class TravelService {
             endTime: DateTime(currentDay.year, currentDay.month, currentDay.day, 13, 0),
             cost: daySpot1.entryFee,
             location: daySpot1.name,
-            imageUrl: 'assets/images/spot_default.jpg',
-            notes: 'Entry Fee: \$${daySpot1.entryFee.toStringAsFixed(2)}',
+            imageUrl: _getSpotImage(daySpot1.name, destination),
+            notes: daySpot1.entryFee > 0
+                ? 'Entry Fee: ₹${daySpot1.entryFee.toInt()}'
+                : 'Free Admission',
           ),
           // 01:00 PM – 02:30 PM: FOOD (Lunch)
           ActivityModel(
@@ -188,7 +192,7 @@ class TravelService {
             endTime: DateTime(currentDay.year, currentDay.month, currentDay.day, 14, 30),
             cost: dayLunch.averageCost,
             location: dayLunch.restaurantName,
-            imageUrl: 'assets/images/spot_default.jpg',
+            imageUrl: 'assets/images/dining_default.jpg',
             notes: 'Meal: Lunch',
           ),
           // 03:30 PM – 06:00 PM: SIGHTSEEING
@@ -203,8 +207,10 @@ class TravelService {
             endTime: DateTime(currentDay.year, currentDay.month, currentDay.day, 18, 0),
             cost: daySpot2.entryFee,
             location: daySpot2.name,
-            imageUrl: 'assets/images/spot_default.jpg',
-            notes: 'Entry Fee: \$${daySpot2.entryFee.toStringAsFixed(2)}',
+            imageUrl: _getSpotImage(daySpot2.name, destination),
+            notes: daySpot2.entryFee > 0
+                ? 'Entry Fee: ₹${daySpot2.entryFee.toInt()}'
+                : 'Free Admission',
           ),
           // 07:30 PM – 09:30 PM: FOOD (Dinner)
           ActivityModel(
@@ -218,7 +224,7 @@ class TravelService {
             endTime: DateTime(currentDay.year, currentDay.month, currentDay.day, 21, 30),
             cost: dayDinner.averageCost,
             location: dayDinner.restaurantName,
-            imageUrl: 'assets/images/spot_default.jpg',
+            imageUrl: 'assets/images/dining_default.jpg',
             notes: 'Meal: Dinner',
           ),
         ]);
@@ -226,6 +232,37 @@ class TravelService {
     }
 
     return activities;
+  }
+
+  String _getSpotImage(String name, String destination) {
+    final lower = name.toLowerCase();
+    if (lower.contains('eiffel')) return 'assets/images/eiffel_tower.jpg';
+    if (lower.contains('louvre')) return 'assets/images/louvre.jpg';
+    if (lower.contains('notre') || lower.contains('cité')) return 'assets/images/paris.jpg';
+    if (lower.contains('colosseum') || lower.contains('forum')) return 'assets/images/colosseum.jpg';
+    if (lower.contains('vatican') || lower.contains('peter') || lower.contains('sistine')) return 'assets/images/vatican.jpg';
+    if (lower.contains('shibuya')) return 'assets/images/shibuya.jpg';
+    if (lower.contains('senso') || lower.contains('asakusa')) return 'assets/images/sensoji.jpg';
+    if (lower.contains('akihabara')) return 'assets/images/tokyo.jpg';
+    if (lower.contains('matterhorn')) return 'assets/images/matterhorn.jpg';
+    if (lower.contains('jungfrau')) return 'assets/images/swiss_alps.jpg';
+    if (lower.contains('trevi') || lower.contains('spanish')) return 'assets/images/rome.jpg';
+
+    final destLower = destination.toLowerCase();
+    if (destLower.contains('paris')) return 'assets/images/paris.jpg';
+    if (destLower.contains('rome')) return 'assets/images/rome.jpg';
+    if (destLower.contains('tokyo')) return 'assets/images/tokyo.jpg';
+    if (destLower.contains('swiss')) return 'assets/images/swiss_alps.jpg';
+
+    return 'assets/images/spot_default.jpg';
+  }
+
+  String _getTransportImage(String mode, String title) {
+    final lower = '$mode $title'.toLowerCase();
+    if (lower.contains('train') || lower.contains('rail') || lower.contains('eurostar') || lower.contains('shinkansen')) {
+      return 'assets/images/train_transit.jpg';
+    }
+    return 'assets/images/flight_transit.jpg';
   }
 
   /// Legacy/Compatibility method for existing callers.

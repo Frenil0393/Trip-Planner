@@ -44,6 +44,9 @@ class DestinationModel {
   /// Curated top dining establishments / restaurants at this destination.
   final List<DestinationDining> dining;
 
+  /// Curated recommended accommodations / hotels at this destination.
+  final List<DestinationHotel> hotels;
+
   const DestinationModel({
     required this.id,
     required this.name,
@@ -57,6 +60,7 @@ class DestinationModel {
     this.currency = 'USD',
     this.spots = const [],
     this.dining = const [],
+    this.hotels = const [],
   });
 
   /// Formatted title combining name and country (e.g., "Paris, France").
@@ -76,6 +80,7 @@ class DestinationModel {
     String? currency,
     List<DestinationSpot>? spots,
     List<DestinationDining>? dining,
+    List<DestinationHotel>? hotels,
   }) {
     return DestinationModel(
       id: id ?? this.id,
@@ -90,6 +95,7 @@ class DestinationModel {
       currency: currency ?? this.currency,
       spots: spots ?? this.spots,
       dining: dining ?? this.dining,
+      hotels: hotels ?? this.hotels,
     );
   }
 
@@ -108,6 +114,7 @@ class DestinationModel {
       'currency': currency,
       'spots': jsonEncode(spots.map((s) => s.toMap()).toList()),
       'dining': jsonEncode(dining.map((d) => d.toMap()).toList()),
+      'hotels': jsonEncode(hotels.map((h) => h.toMap()).toList()),
     };
   }
 
@@ -158,6 +165,23 @@ class DestinationModel {
           .toList();
     }
 
+    // Handle hotels parsing
+    List<DestinationHotel> parsedHotels = [];
+    if (map['hotels'] is String) {
+      try {
+        final decoded = jsonDecode(map['hotels'] as String);
+        if (decoded is List) {
+          parsedHotels = decoded
+              .map((item) => DestinationHotel.fromMap(item as Map<String, dynamic>))
+              .toList();
+        }
+      } catch (_) {}
+    } else if (map['hotels'] is List) {
+      parsedHotels = (map['hotels'] as List)
+          .map((item) => DestinationHotel.fromMap(item as Map<String, dynamic>))
+          .toList();
+    }
+
     return DestinationModel(
       id: (map['id'] ?? '') as String,
       name: (map['name'] ?? '') as String,
@@ -171,6 +195,7 @@ class DestinationModel {
       currency: (map['currency'] ?? 'USD') as String,
       spots: parsedSpots,
       dining: parsedDining,
+      hotels: parsedHotels,
     );
   }
 
@@ -205,19 +230,19 @@ class DestinationModel {
       id: 'paris',
       name: 'Paris',
       country: 'France',
-      tagline: 'The city of light, love, and endless inspiration.',
+      tagline: 'The city of light, art, and romantic avenues.',
       description:
           'Paris, France\'s capital, is a major European city and a global center for art, fashion, gastronomy, and culture. Its 19th-century cityscape is crisscrossed by wide boulevards and the River Seine.',
       imageUrl: 'assets/images/paris.jpg',
       rating: 4.8,
       tags: ['Romantic', 'Art', 'Cuisine', 'Historic'],
       bestTimeToVisit: 'April - October',
-      currency: 'EUR',
+      currency: 'INR (₹)',
       spots: [
         DestinationSpot(
           id: 'eiffel-tower',
           title: 'Eiffel Tower',
-          description: 'Iconic wrought-iron spire and symbol of Paris.',
+          description: 'Iconic wrought-iron spire offering panoramic views of Paris.',
           imageUrl: 'assets/images/eiffel_tower.jpg',
           category: 'Landmark',
           rating: 4.8,
@@ -225,10 +250,10 @@ class DestinationModel {
         DestinationSpot(
           id: 'louvre-museum',
           title: 'Louvre Museum',
-          description: 'World\'s largest art museum, home to the Mona Lisa.',
-          imageUrl: 'assets/images/spot_default.jpg',
+          description: 'World\'s largest art museum, home to the Mona Lisa and glass pyramid.',
+          imageUrl: 'assets/images/louvre.jpg',
           category: 'Museum',
-          rating: 4.7,
+          rating: 4.9,
         ),
         DestinationSpot(
           id: 'notre-dame',
@@ -236,44 +261,53 @@ class DestinationModel {
           description: 'Medieval Catholic cathedral renowned for French Gothic architecture.',
           imageUrl: 'assets/images/paris.jpg',
           category: 'Historic',
-          rating: 4.6,
+          rating: 4.7,
         ),
         DestinationSpot(
           id: 'montmartre',
           title: 'Montmartre & Sacré-Cœur',
-          description: 'Bohemian hilltop neighborhood with panoramic basilica views.',
+          description: 'Bohemian hilltop neighborhood with panoramic city views.',
           imageUrl: 'assets/images/spot_default.jpg',
           category: 'Neighborhood',
-          rating: 4.7,
+          rating: 4.6,
         ),
       ],
       dining: [
         DestinationDining(
           id: 'le-jules-verne',
           title: 'Le Jules Verne',
-          description: 'Fine French dining with panoramic views from the Eiffel Tower.',
-          imageUrl: 'assets/images/spot_default.jpg',
+          description: 'Fine French dining with elevated views from the Eiffel Tower.',
+          imageUrl: 'assets/images/dining_default.jpg',
           cuisine: 'French Fine Dining',
-          priceRange: '\$\$\$\$',
+          priceRange: '₹₹₹₹',
           rating: 4.9,
         ),
         DestinationDining(
           id: 'cafe-de-flore',
           title: 'Café de Flore',
           description: 'Classic Parisian literary café in Saint-Germain-des-Prés.',
-          imageUrl: 'assets/images/spot_default.jpg',
+          imageUrl: 'assets/images/dining_default.jpg',
           cuisine: 'French Bistro & Bakery',
-          priceRange: '\$\$',
-          rating: 4.5,
+          priceRange: '₹₹',
+          rating: 4.6,
         ),
-        DestinationDining(
-          id: 'l-as-du-fallafel',
-          title: 'L\'As du Fallafel',
-          description: 'World-famous Middle Eastern street food in the heart of the Marais.',
-          imageUrl: 'assets/images/spot_default.jpg',
-          cuisine: 'Middle Eastern Street Food',
-          priceRange: '\$',
-          rating: 4.7,
+      ],
+      hotels: [
+        DestinationHotel(
+          id: 'hotel-paris-grand',
+          title: 'Hôtel Le Grand Paris',
+          description: 'Boutique stay near Saint-Germain with comfortable designer rooms.',
+          imageUrl: 'assets/images/hotel_default.jpg',
+          pricePerNight: 6500.0,
+          rating: 4.8,
+        ),
+        DestinationHotel(
+          id: 'hotel-paris-eiffel',
+          title: 'Hôtel Eiffel Seine',
+          description: 'Art Nouveau hotel located a short 5-minute walk from the Eiffel Tower.',
+          imageUrl: 'assets/images/hotel_default.jpg',
+          pricePerNight: 8500.0,
+          rating: 4.9,
         ),
       ],
     ),
@@ -287,8 +321,8 @@ class DestinationModel {
       imageUrl: 'assets/images/tokyo.jpg',
       rating: 4.9,
       tags: ['Futuristic', 'Tech', 'Anime', 'Sushi'],
-      bestTimeToVisit: 'March - May & September - November',
-      currency: 'JPY',
+      bestTimeToVisit: 'March - May & Sept - Nov',
+      currency: 'INR (₹)',
       spots: [
         DestinationSpot(
           id: 'shibuya-crossing',
@@ -301,38 +335,264 @@ class DestinationModel {
         DestinationSpot(
           id: 'senso-ji',
           title: 'Sensō-ji Temple',
-          description: 'Tokyo’s oldest Buddhist temple founded in 645 AD in Asakusa.',
-          imageUrl: 'assets/images/tokyo.jpg',
+          description: 'Tokyo’s oldest Buddhist temple founded in 645 AD in historic Asakusa.',
+          imageUrl: 'assets/images/sensoji.jpg',
           category: 'Historic Temple',
-          rating: 4.7,
+          rating: 4.9,
         ),
         DestinationSpot(
           id: 'akihabara-electric-town',
           title: 'Akihabara Electric Town',
-          description: 'The epicenter of gaming, manga, anime, and tech electronics.',
-          imageUrl: 'assets/images/spot_default.jpg',
+          description: 'The epicenter of gaming, manga, anime, and electronic culture.',
+          imageUrl: 'assets/images/tokyo.jpg',
           category: 'Culture & Shopping',
-          rating: 4.6,
+          rating: 4.7,
         ),
       ],
       dining: [
         DestinationDining(
           id: 'sukiyabashi-jiro',
           title: 'Ginza Sushi Masters',
-          description: 'Authentic Edomae-style omakase sushi prepared by legendary chefs.',
-          imageUrl: 'assets/images/spot_default.jpg',
+          description: 'Authentic Edomae-style omakase sushi prepared by master chefs.',
+          imageUrl: 'assets/images/dining_default.jpg',
           cuisine: 'Traditional Japanese Sushi',
-          priceRange: '\$\$\$\$',
+          priceRange: '₹₹₹₹',
           rating: 4.9,
         ),
         DestinationDining(
           id: 'ichiran-shinjuku',
           title: 'Ichiran Ramen',
-          description: 'Signature tonkotsu ramen served in individual flavor-focus booths.',
-          imageUrl: 'assets/images/spot_default.jpg',
+          description: 'Signature rich tonkotsu ramen served in individual flavor-focus booths.',
+          imageUrl: 'assets/images/dining_default.jpg',
           cuisine: 'Japanese Ramen',
-          priceRange: '\$',
+          priceRange: '₹',
           rating: 4.8,
+        ),
+      ],
+      hotels: [
+        DestinationHotel(
+          id: 'hotel-tokyo-shinjuku',
+          title: 'Shinjuku Prince Hotel',
+          description: 'Sleek modern tower hotel situated directly in vibrant Shinjuku.',
+          imageUrl: 'assets/images/hotel_default.jpg',
+          pricePerNight: 6800.0,
+          rating: 4.7,
+        ),
+      ],
+    ),
+    DestinationModel(
+      id: 'goa',
+      name: 'Goa',
+      country: 'India',
+      tagline: 'Sun-kissed beaches, coastal cuisine, and Portuguese heritage.',
+      description:
+          'Goa is India’s premier coastal paradise, celebrated for its golden beaches, ancient cathedrals, fresh seafood shacks, and vibrant tropical lifestyle.',
+      imageUrl: 'assets/images/trip_placeholder.jpg',
+      rating: 4.8,
+      tags: ['Beach', 'Seafood', 'Heritage', 'Relaxation'],
+      bestTimeToVisit: 'October - March',
+      currency: 'INR (₹)',
+      spots: [
+        DestinationSpot(
+          id: 'baga-beach',
+          title: 'Baga Beach & Watersports',
+          description: 'Popular shoreline with water sports, beach shacks, and sunset views.',
+          imageUrl: 'assets/images/trip_placeholder.jpg',
+          category: 'Beach & Sports',
+          rating: 4.7,
+        ),
+        DestinationSpot(
+          id: 'basilica-bom-jesus',
+          title: 'Basilica of Bom Jesus',
+          description: 'UNESCO World Heritage baroque church holding sacred relics of St. Francis Xavier.',
+          imageUrl: 'assets/images/vatican.jpg',
+          category: 'Heritage',
+          rating: 4.9,
+        ),
+        DestinationSpot(
+          id: 'fort-aguada',
+          title: 'Fort Aguada & Lighthouse',
+          description: '17th-century Portuguese fortress overlooking the Arabian Sea.',
+          imageUrl: 'assets/images/trip_placeholder.jpg',
+          category: 'Historic Fort',
+          rating: 4.6,
+        ),
+      ],
+      dining: [
+        DestinationDining(
+          id: 'fishermans-wharf',
+          title: 'The Fisherman\'s Wharf',
+          description: 'Riverside Goan dining serving authentic coastal seafood curry.',
+          imageUrl: 'assets/images/dining_default.jpg',
+          cuisine: 'Goan Seafood',
+          priceRange: '₹₹',
+          rating: 4.8,
+        ),
+      ],
+      hotels: [
+        DestinationHotel(
+          id: 'hotel-goa-taj',
+          title: 'Taj Coastal Beach Resort',
+          description: 'Luxury seaside villa property with private cabanas and lush gardens.',
+          imageUrl: 'assets/images/hotel_default.jpg',
+          pricePerNight: 5200.0,
+          rating: 4.9,
+        ),
+      ],
+    ),
+    DestinationModel(
+      id: 'jaipur',
+      name: 'Jaipur',
+      country: 'India',
+      tagline: 'The Pink City of majestic forts, royal palaces, and vibrant bazaars.',
+      description:
+          'Jaipur, Rajasthan\'s royal capital, captivates travelers with its terracotta-pink historic quarters, hilltop forts, and intricate palaces of the Rajput Maharajas.',
+      imageUrl: 'assets/images/trip_placeholder.jpg',
+      rating: 4.9,
+      tags: ['Royal Forts', 'Palaces', 'Culture', 'Shopping'],
+      bestTimeToVisit: 'October - March',
+      currency: 'INR (₹)',
+      spots: [
+        DestinationSpot(
+          id: 'amber-fort',
+          title: 'Amber Palace (Amer Fort)',
+          description: 'Majestic hilltop fort with ornate Sheesh Mahal mirror palace.',
+          imageUrl: 'assets/images/trip_placeholder.jpg',
+          category: 'Historic Palace',
+          rating: 4.9,
+        ),
+        DestinationSpot(
+          id: 'hawa-mahal',
+          title: 'Hawa Mahal (Palace of Winds)',
+          description: 'Iconic five-story pink sandstone palace with 953 ornate windows.',
+          imageUrl: 'assets/images/trip_placeholder.jpg',
+          category: 'Landmark',
+          rating: 4.8,
+        ),
+      ],
+      dining: [
+        DestinationDining(
+          id: 'lmb-jaipur',
+          title: 'LMB Rajasthani Dining',
+          description: 'Historic eatery famous for authentic Dal Baati Churma and royal thali.',
+          imageUrl: 'assets/images/dining_default.jpg',
+          cuisine: 'Traditional Rajasthani',
+          priceRange: '₹₹',
+          rating: 4.7,
+        ),
+      ],
+      hotels: [
+        DestinationHotel(
+          id: 'hotel-jaipur-palace',
+          title: 'Rambagh Heritage Palace',
+          description: 'Royal residence transformed into an opulent luxury palace hotel.',
+          imageUrl: 'assets/images/hotel_default.jpg',
+          pricePerNight: 5800.0,
+          rating: 4.9,
+        ),
+      ],
+    ),
+    DestinationModel(
+      id: 'manali',
+      name: 'Manali',
+      country: 'India',
+      tagline: 'Snow-capped Himalayan peaks, pine valleys, and mountain adventures.',
+      description:
+          'Manali is a high-altitude Himalayan resort town in Himachal Pradesh, renowned for snow-clad landscapes, Solang Valley adventures, and picturesque mountain trails.',
+      imageUrl: 'assets/images/swiss_alps.jpg',
+      rating: 4.8,
+      tags: ['Himalayas', 'Snow', 'Adventure', 'Nature'],
+      bestTimeToVisit: 'Year-round (Dec-Feb for Snow, May-June for Weather)',
+      currency: 'INR (₹)',
+      spots: [
+        DestinationSpot(
+          id: 'solang-valley',
+          title: 'Solang Valley Adventure Hub',
+          description: 'Snow valley hub for paragliding, skiing, and panoramic mountain views.',
+          imageUrl: 'assets/images/matterhorn.jpg',
+          category: 'Adventure',
+          rating: 4.8,
+        ),
+        DestinationSpot(
+          id: 'hadimba-temple',
+          title: 'Hadimba Devi Temple',
+          description: 'Ancient wooden pagoda temple amidst towering cedar forests.',
+          imageUrl: 'assets/images/sensoji.jpg',
+          category: 'Heritage',
+          rating: 4.7,
+        ),
+      ],
+      dining: [
+        DestinationDining(
+          id: 'cafe-1947',
+          title: 'Cafe 1947 Riverside',
+          description: 'Riverside cafe serving wood-fired Italian dishes and hot mountain tea.',
+          imageUrl: 'assets/images/dining_default.jpg',
+          cuisine: 'Riverside Italian & Cafe',
+          priceRange: '₹₹',
+          rating: 4.8,
+        ),
+      ],
+      hotels: [
+        DestinationHotel(
+          id: 'hotel-manali-resort',
+          title: 'Himalayan Pine Valley Resort',
+          description: 'Wooden luxury suites overlooking snow peaks and pine forests.',
+          imageUrl: 'assets/images/hotel_default.jpg',
+          pricePerNight: 3800.0,
+          rating: 4.8,
+        ),
+      ],
+    ),
+    DestinationModel(
+      id: 'kerala',
+      name: 'Kerala',
+      country: 'India',
+      tagline: 'God\'s Own Country: emerald backwaters, tea gardens, and wellness.',
+      description:
+          'Kerala is a tropical paradise in South India renowned for palm-fringed backwaters, Munnar’s mist-wrapped tea hills, and rich Ayurvedic traditions.',
+      imageUrl: 'assets/images/trip_placeholder.jpg',
+      rating: 4.9,
+      tags: ['Backwaters', 'Tea Gardens', 'Nature', 'Wellness'],
+      bestTimeToVisit: 'September - March',
+      currency: 'INR (₹)',
+      spots: [
+        DestinationSpot(
+          id: 'alleppey-backwaters',
+          title: 'Alleppey Backwaters Houseboat',
+          description: 'Serene cruise through palm-fringed canals and emerald lagoons.',
+          imageUrl: 'assets/images/trip_placeholder.jpg',
+          category: 'Backwaters Cruise',
+          rating: 4.9,
+        ),
+        DestinationSpot(
+          id: 'munnar-tea-gardens',
+          title: 'Munnar Tea Plantations',
+          description: 'Rolling green hills and colonial tea estate walking trails.',
+          imageUrl: 'assets/images/swiss_alps.jpg',
+          category: 'Nature',
+          rating: 4.8,
+        ),
+      ],
+      dining: [
+        DestinationDining(
+          id: 'paragon-kerala',
+          title: 'Paragon Coastal Kitchen',
+          description: 'Acclaimed eatery famous for Malabar biryani and coastal seafood thali.',
+          imageUrl: 'assets/images/dining_default.jpg',
+          cuisine: 'Malabar Coastal',
+          priceRange: '₹₹',
+          rating: 4.9,
+        ),
+      ],
+      hotels: [
+        DestinationHotel(
+          id: 'hotel-kerala-lake',
+          title: 'Kumarakom Backwater Lake Resort',
+          description: 'Waterfront luxury retreat with Ayurvedic wellness spa.',
+          imageUrl: 'assets/images/hotel_default.jpg',
+          pricePerNight: 5500.0,
+          rating: 4.9,
         ),
       ],
     ),
@@ -347,7 +607,7 @@ class DestinationModel {
       rating: 4.9,
       tags: ['Adventure', 'Nature', 'Mountains', 'Hiking'],
       bestTimeToVisit: 'June - September (Hiking), Dec - March (Skiing)',
-      currency: 'CHF',
+      currency: 'INR (₹)',
       spots: [
         DestinationSpot(
           id: 'matterhorn',
@@ -371,10 +631,20 @@ class DestinationModel {
           id: 'zermatt-fondue-stube',
           title: 'Walliserstube Zermatt',
           description: 'Traditional Swiss cheese fondue and raclette by an open fireplace.',
-          imageUrl: 'assets/images/spot_default.jpg',
+          imageUrl: 'assets/images/dining_default.jpg',
           cuisine: 'Traditional Swiss Alpine',
-          priceRange: '\$\$\$',
+          priceRange: '₹₹₹',
           rating: 4.7,
+        ),
+      ],
+      hotels: [
+        DestinationHotel(
+          id: 'hotel-swiss-chalet',
+          title: 'Matterhorn Alpine Chalet',
+          description: 'Cozy timber chalet lodge with stunning views of the Matterhorn peak.',
+          imageUrl: 'assets/images/hotel_default.jpg',
+          pricePerNight: 9500.0,
+          rating: 4.9,
         ),
       ],
     ),
@@ -386,10 +656,10 @@ class DestinationModel {
       description:
           'Rome is Italy’s sprawling, cosmopolitan capital boasting nearly 3,000 years of globally influential art, architecture, and ruins such as the Colosseum and Roman Forum.',
       imageUrl: 'assets/images/rome.jpg',
-      rating: 4.7,
+      rating: 4.8,
       tags: ['Ancient History', 'Architecture', 'Pasta', 'Espresso'],
       bestTimeToVisit: 'September - November & April - May',
-      currency: 'EUR',
+      currency: 'INR (₹)',
       spots: [
         DestinationSpot(
           id: 'colosseum',
@@ -397,7 +667,15 @@ class DestinationModel {
           description: 'The monumental Flavian Amphitheatre of Imperial Roman gladiator games.',
           imageUrl: 'assets/images/colosseum.jpg',
           category: 'Ancient Ruins',
-          rating: 4.8,
+          rating: 4.9,
+        ),
+        DestinationSpot(
+          id: 'vatican-basilica',
+          title: 'St. Peter\'s Basilica & Vatican',
+          description: 'Michelangelo\'s architectural marvel and grand colonnaded square.',
+          imageUrl: 'assets/images/vatican.jpg',
+          category: 'Historic Landmark',
+          rating: 4.9,
         ),
         DestinationSpot(
           id: 'trevi-fountain',
@@ -413,9 +691,19 @@ class DestinationModel {
           id: 'da-enzo-trastevere',
           title: 'Da Enzo al 29',
           description: 'Legendary Roman trattoria serving classic Carbonara and Cacio e Pepe.',
-          imageUrl: 'assets/images/spot_default.jpg',
+          imageUrl: 'assets/images/dining_default.jpg',
           cuisine: 'Roman Trattoria',
-          priceRange: '\$\$',
+          priceRange: '₹₹',
+          rating: 4.8,
+        ),
+      ],
+      hotels: [
+        DestinationHotel(
+          id: 'hotel-rome-colosseum',
+          title: 'Hotel Colosseum Palace',
+          description: 'Historic boutique hotel overlooking Roman ruins with panoramic terrace.',
+          imageUrl: 'assets/images/hotel_default.jpg',
+          pricePerNight: 5500.0,
           rating: 4.8,
         ),
       ],
@@ -609,4 +897,46 @@ class DestinationDining {
 
   @override
   String toString() => 'DestinationDining(id: $id, title: $title, cuisine: $cuisine)';
+}
+
+/// Represents recommended accommodation or boutique hotel at a destination.
+class DestinationHotel {
+  final String id;
+  final String title;
+  final String description;
+  final String imageUrl;
+  final double pricePerNight;
+  final double rating;
+
+  const DestinationHotel({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.imageUrl,
+    required this.pricePerNight,
+    this.rating = 4.8,
+  });
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'title': title,
+    'description': description,
+    'image_url': imageUrl,
+    'price_per_night': pricePerNight,
+    'rating': rating,
+  };
+
+  factory DestinationHotel.fromMap(Map<String, dynamic> map) => DestinationHotel(
+    id: (map['id'] ?? '') as String,
+    title: (map['title'] ?? '') as String,
+    description: (map['description'] ?? '') as String,
+    imageUrl: (map['image_url'] ?? map['imageUrl'] ?? 'assets/images/hotel_default.jpg') as String,
+    pricePerNight: ((map['price_per_night'] ?? map['pricePerNight'] ?? 150.0) as num).toDouble(),
+    rating: ((map['rating'] ?? 4.8) as num).toDouble(),
+  );
+
+  String toJson() => jsonEncode(toMap());
+
+  factory DestinationHotel.fromJson(String source) =>
+      DestinationHotel.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }

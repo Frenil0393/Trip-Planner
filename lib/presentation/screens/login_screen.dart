@@ -239,9 +239,30 @@ class _LoginScreenState extends State<LoginScreen> {
                     // Sign In Button
                     authProvider.isLoading
                         ? const Center(child: CircularProgressIndicator())
-                        : ElevatedButton(
-                            onPressed: _login,
-                            child: const Text('Sign In'),
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              ElevatedButton(
+                                onPressed: _login,
+                                child: const Text('Sign In'),
+                              ),
+                              const SizedBox(height: 12),
+                              OutlinedButton.icon(
+                                icon: const Icon(Icons.person_outline, size: 18),
+                                label: const Text('Explore as Guest (Instant Access)'),
+                                onPressed: () async {
+                                  await authProvider.signIn(
+                                    email: 'traveler@example.com',
+                                    password: 'password123',
+                                  );
+                                  if (!context.mounted) return;
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => const HomeScreen()),
+                                  );
+                                },
+                              ),
+                            ],
                           ),
                     const SizedBox(height: 20),
 

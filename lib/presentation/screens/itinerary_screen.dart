@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../data/models/trip_model.dart';
 import '../../providers/trip_provider.dart';
+
 import '../widgets/timeline_card.dart';
 import '../../core/theme.dart';
+import '../../core/utils.dart';
 
 class ItineraryScreen extends StatefulWidget {
   final TripModel trip;
@@ -237,39 +239,54 @@ class _ItineraryScreenState extends State<ItineraryScreen> {
                             fontWeight: FontWeight.w700,
                           ),
                     ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.location_on,
-                          size: 16,
-                          color: AppColors.primary,
+                    const SizedBox(height: 8),
+                    // Prominent Departure Date & Meta Row
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.surfaceTile3 : AppColors.surfacePearl,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isDark ? Colors.white10 : AppColors.hairline,
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          widget.trip.destinationName ?? 'Curated Destination',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: isDark ? AppColors.bodyMuted : AppColors.inkMuted80,
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.flight_takeoff,
+                            size: 16,
+                            color: AppColors.primary,
                           ),
-                        ),
-                        const SizedBox(width: 16),
-                        const Icon(
-                          Icons.calendar_today,
-                          size: 14,
-                          color: AppColors.primary,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${widget.trip.durationInDays} Days (${widget.trip.formattedDateRange})',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: isDark ? AppColors.bodyMuted : AppColors.inkMuted80,
+                          const SizedBox(width: 8),
+                          Text(
+                            'Departure: ',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: isDark ? AppColors.bodyMuted : AppColors.inkMuted80,
+                            ),
                           ),
-                        ),
-                      ],
+                          Text(
+                            AppUtils.formatDepartureDate(widget.trip.startDate),
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? Colors.white : AppColors.ink,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            '${widget.trip.durationInDays} Days (${widget.trip.formattedDateRange})',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? AppColors.primaryOnDark : AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+
                   ],
                 ),
               ),
@@ -347,71 +364,77 @@ class _ItineraryScreenState extends State<ItineraryScreen> {
               });
             },
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 14.0),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.account_balance_wallet,
-                          size: 18,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Financial Summary & Cost Estimator',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                            ),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          Text(
-                            'Aggregated budget overview by category',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isDark ? AppColors.bodyMuted : AppColors.inkMuted80,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          'Total: \$${totalCost.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
+                          child: const Icon(
+                            Icons.account_balance_wallet,
+                            size: 18,
                             color: AppColors.primary,
                           ),
                         ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Financial Summary',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Estimated budget by category',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isDark ? AppColors.bodyMuted : AppColors.inkMuted80,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      'Total: ${AppUtils.formatCurrency(totalCost)}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primary,
                       ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        _isBudgetPanelExpanded
-                            ? Icons.keyboard_arrow_up
-                            : Icons.keyboard_arrow_down,
-                        color: isDark ? AppColors.bodyMuted : AppColors.inkMuted80,
-                      ),
-                    ],
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Icon(
+                    _isBudgetPanelExpanded
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
+                    color: isDark ? AppColors.bodyMuted : AppColors.inkMuted80,
+                    size: 20,
                   ),
                 ],
               ),
@@ -526,10 +549,11 @@ class _ItineraryScreenState extends State<ItineraryScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '\$${amount.toStringAsFixed(2)}',
-                  style: const TextStyle(
+                  AppUtils.formatCurrency(amount),
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : AppColors.ink,
                   ),
                 ),
               ],

@@ -9,6 +9,7 @@ import 'profile_screen.dart';
 import 'destination_details_screen.dart';
 import 'itinerary_screen.dart';
 import '../widgets/app_image.dart';
+import '../widgets/departure_date_selector.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -27,20 +28,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _promptController.dispose();
     _scrollController.dispose();
     super.dispose();
-  }
-
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-    if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-      });
-    }
   }
 
   void _generateTrip(String prompt) {
@@ -214,38 +201,64 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            OutlinedButton.icon(
-                              onPressed: () => _selectDate(context),
-                              icon: const Icon(Icons.calendar_today, size: 16),
-                              label: Text('Departure: ${_selectedDate.toLocal()}'.split(' ')[0]),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: isDark ? AppColors.canvas : AppColors.ink,
-                                side: BorderSide(
-                                  color: isDark
-                                      ? AppColors.hairline.withValues(alpha: 0.2)
-                                      : AppColors.hairline,
-                                ),
-                              ),
+                        if (tripProvider.isLoading) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
                             ),
-                          ],
+                            child: Row(
+                              children: [
+                                const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2.5),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    tripProvider.statusMessage.isNotEmpty
+                                        ? tripProvider.statusMessage
+                                        : 'Processing prompt with Google Gemini 2.5 Flash LLM...',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 16),
+                        // Redesigned Departure Date Selector
+                        DepartureDateSelector(
+                          selectedDate: _selectedDate,
+                          onDateSelected: (newDate) {
+                            setState(() {
+                              _selectedDate = newDate;
+                            });
+                          },
                         ),
                         const SizedBox(height: 16),
 
-                        // Quick Ideas chips
+
+                        // Quick Ideas chips (Indian & International travel ideas)
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
                           alignment: WrapAlignment.center,
                           children: [
-                            _buildQuickChip('🚆 Paris 2-Day Train & Eiffel', 'I want to go to Paris by train, stay for 2 days, and see the Eiffel Tower.'),
-                            _buildQuickChip('🗼 Paris 3-Day Art', 'Plan a 3-day romantic weekend in Paris focusing on art and food.'),
-                            _buildQuickChip('🏯 Tokyo 5-Day Tech', 'A 5-day trip to Tokyo exploring gadgets, anime, and modern culture.'),
-                            _buildQuickChip('🏔️ Swiss Alps 4-Day Hike', 'A 4-day hiking adventure in the Swiss Alps with mountain views.'),
-                            _buildQuickChip('🏛️ Rome 3-Day History', 'A 3-day cultural exploration of ancient Rome ruins and cuisine.'),
+                            _buildQuickChip('🏖️ Goa 3-Day Beach Escape', 'Plan a 3-day beach vacation to Goa with water sports, beach shacks, and seafood.', isDark),
+                            _buildQuickChip('🏰 Jaipur 3-Day Royal Forts', 'A 3-day royal heritage trip to Jaipur exploring Amer Fort, City Palace, and bazaars.', isDark),
+                            _buildQuickChip('🏔️ Manali 4-Day Snow Tour', 'A 4-day mountain getaway to Manali with Solang Valley, Rohtang Pass, and scenic cafes.', isDark),
+                            _buildQuickChip('🌴 Kerala 3-Day Backwaters', 'A 3-day serene backwater tour in Kerala with houseboat stay and Munnar tea gardens.', isDark),
+                            _buildQuickChip('🗼 Paris 3-Day Art & Food', 'Plan a 3-day romantic trip to Paris exploring the Eiffel Tower, Louvre, and cafes.', isDark),
+                            _buildQuickChip('🏯 Tokyo 5-Day Tech Tour', 'A 5-day trip to Tokyo exploring gadgets, anime hubs, and modern culture.', isDark),
                           ],
                         ),
                       ],
@@ -335,45 +348,80 @@ class _HomeScreenState extends State<HomeScreen> {
                         runSpacing: 24,
                         alignment: WrapAlignment.center,
                         children: AppConstants.preBakedTemplates.map((template) {
+                          final imagePath = template['image'] ?? 'assets/images/trip_placeholder.jpg';
                           return SizedBox(
                             width: 300,
-                            child: Card(
-                              margin: EdgeInsets.zero,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: isDark ? AppColors.surfaceTile2 : AppColors.canvas,
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(
+                                  color: isDark ? Colors.white10 : AppColors.hairline,
+                                ),
+                              ),
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(18),
                                 onTap: () {
                                   _promptController.text = template['prompt'];
                                   _generateTrip(template['prompt']);
                                 },
-                                child: Padding(
-                                  padding: const EdgeInsets.all(24.0),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        template['title'],
-                                        style: Theme.of(context).textTheme.bodyLarge,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    AppImage(
+                                      imagePath: imagePath,
+                                      height: 140,
+                                      width: double.infinity,
+                                      fit: BoxFit.cover,
+                                      borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.all(20.0),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            template['title'],
+                                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            template['prompt'],
+                                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                  color: isDark ? AppColors.bodyMuted : AppColors.inkMuted80,
+                                                  fontSize: 13,
+                                                ),
+                                            maxLines: 3,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 16),
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                '${template['durationDays']} Days Plan',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: isDark ? AppColors.bodyMuted : AppColors.inkMuted80,
+                                                ),
+                                              ),
+                                              const Text(
+                                                'Generate Plan →',
+                                                style: TextStyle(
+                                                  color: AppColors.primary,
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
                                       ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        template['prompt'],
-                                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                              color: isDark ? AppColors.bodyMuted : AppColors.inkMuted80,
-                                            ),
-                                        maxLines: 3,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 24),
-                                      const Text(
-                                        'Generate Itinerary →',
-                                        style: TextStyle(
-                                          color: AppColors.primary,
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
@@ -391,12 +439,31 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildQuickChip(String label, String prompt) {
-    return ActionChip(
-      label: Text(label, style: const TextStyle(fontSize: 12)),
-      onPressed: () {
+  Widget _buildQuickChip(String label, String prompt, bool isDark) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(9999),
+      onTap: () {
         _promptController.text = prompt;
       },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.surfaceTile2 : AppColors.surfacePearl,
+          borderRadius: BorderRadius.circular(9999),
+          border: Border.all(
+            color: isDark ? Colors.white12 : AppColors.hairline,
+            width: 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: isDark ? AppColors.canvas : AppColors.ink,
+          ),
+        ),
+      ),
     );
   }
 

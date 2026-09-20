@@ -1,0 +1,195 @@
+{
+	"info": {
+		"_postman_id": "8f8b8e8f-7c19-4d6b-b4ce-3bfd7a1267b1",
+		"name": "Trip Planner - Gemini AI API Collection",
+		"description": "Postman collection to test, debug, and view returned travel itinerary data from Google Gemini LLM API (gemini-2.5-flash / gemini-1.5-flash).\n\nUse this to inspect exact request payloads and returned structured JSON data without cluttering the mobile app UI.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Health Check - List Models",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://generativelanguage.googleapis.com/v1beta/models?key={{GEMINI_API_KEY}}",
+					"protocol": "https",
+					"host": [
+						"generativelanguage",
+						"googleapis",
+						"com"
+					],
+					"path": [
+						"v1beta",
+						"models"
+					],
+					"query": [
+						{
+							"key": "key",
+							"value": "{{GEMINI_API_KEY}}",
+							"description": "Gemini API key"
+						}
+					]
+				},
+				"description": "Verifies that your Gemini API Key is valid and active by querying the available models list."
+			},
+			"response": []
+		},
+		{
+			"name": "2. Generate Itinerary - Goa Beach Trip (3 Days)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response returns valid candidates with JSON itinerary\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('candidates');",
+							"    pm.expect(jsonData.candidates.length).to.be.above(0);",
+							"    ",
+							"    var contentText = jsonData.candidates[0].content.parts[0].text;",
+							"    var parsedItinerary = JSON.parse(contentText);",
+							"    ",
+							"    pm.expect(parsedItinerary).to.have.property('title');",
+							"    pm.expect(parsedItinerary).to.have.property('destination');",
+							"    pm.expect(parsedItinerary).to.have.property('durationDays');",
+							"    pm.expect(parsedItinerary).to.have.property('activities');",
+							"    ",
+							"    console.log(\"=== PARSED ITINERARY FROM GEMINI ===\");",
+							"    console.log(JSON.stringify(parsedItinerary, null, 2));",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"system_instruction\": {\n    \"parts\": [\n      {\n        \"text\": \"You are an expert travel planner assistant and AI brain. Given a user travel prompt, extract key details and generate a comprehensive day-by-day itinerary in strict JSON format. All monetary costs MUST be in Indian Rupees (INR ₹).\\nExtract:\\n- destination (e.g., Goa, Jaipur, Manali, Kerala, Paris, Tokyo, Rome, Swiss Alps)\\n- durationDays (e.g., 2, 3, 4, 5)\\n- transportMode (e.g., Train, Flight, Bus)\\n- keySpot (e.g., Baga Beach, Amber Palace, Solang Valley, Eiffel Tower)\\nYour JSON response must match this schema:\\n{\\n  \\\"title\\\": \\\"Short catchy trip title\\\",\\n  \\\"destination\\\": \\\"Goa\\\",\\n  \\\"durationDays\\\": 3,\\n  \\\"transportMode\\\": \\\"Train\\\",\\n  \\\"keySpot\\\": \\\"Baga Beach\\\",\\n  \\\"activities\\\": [\\n    {\\n      \\\"dayNumber\\\": 1,\\n      \\\"activityType\\\": \\\"TRANSPORT\\\",\\n      \\\"title\\\": \\\"Train departure\\\",\\n      \\\"description\\\": \\\"Superfast express train journey\\\",\\n      \\\"startHour\\\": 9,\\n      \\\"startMinute\\\": 0,\\n      \\\"endHour\\\": 12,\\n      \\\"endMinute\\\": 30,\\n      \\\"cost\\\": 2500.0\\n    }\\n  ]\\n}\\nRespond with ONLY valid JSON.\"\n      }\n    ]\n  },\n  \"contents\": [\n    {\n      \"role\": \"user\",\n      \"parts\": [\n        {\n          \"text\": \"Plan a 3-day beach vacation to Goa via Train with water sports, beach shacks, and seafood.\"\n        }\n      ]\n    }\n  ],\n  \"generationConfig\": {\n    \"responseMimeType\": \"application/json\",\n    \"temperature\": 0.4\n  }\n}"
+				},
+				"url": {
+					"raw": "https://generativelanguage.googleapis.com/v1beta/models/{{MODEL}}:generateContent?key={{GEMINI_API_KEY}}",
+					"protocol": "https",
+					"host": [
+						"generativelanguage",
+						"googleapis",
+						"com"
+					],
+					"path": [
+						"v1beta",
+						"models",
+						"{{MODEL}}:generateContent"
+					],
+					"query": [
+						{
+							"key": "key",
+							"value": "{{GEMINI_API_KEY}}"
+						}
+					]
+				},
+				"description": "Requests Gemini to generate a structured 3-day Goa itinerary with transport, hotels, and sightseeing."
+			},
+			"response": []
+		},
+		{
+			"name": "3. Generate Itinerary - Jaipur Heritage (3 Days)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"system_instruction\": {\n    \"parts\": [\n      {\n        \"text\": \"You are an expert travel planner assistant and AI brain. Given a user travel prompt, extract key details and generate a comprehensive day-by-day itinerary in strict JSON format. All monetary costs MUST be in Indian Rupees (INR ₹).\\nExtract:\\n- destination (e.g., Goa, Jaipur, Manali, Kerala, Paris, Tokyo, Rome, Swiss Alps)\\n- durationDays (e.g., 2, 3, 4, 5)\\n- transportMode (e.g., Train, Flight, Bus)\\n- keySpot (e.g., Baga Beach, Amber Palace, Solang Valley, Eiffel Tower)\\nYour JSON response must match this schema:\\n{\\n  \\\"title\\\": \\\"Short catchy trip title\\\",\\n  \\\"destination\\\": \\\"Jaipur\\\",\\n  \\\"durationDays\\\": 3,\\n  \\\"transportMode\\\": \\\"Train\\\",\\n  \\\"keySpot\\\": \\\"Amer Fort\\\",\\n  \\\"activities\\\": [\\n    {\\n      \\\"dayNumber\\\": 1,\\n      \\\"activityType\\\": \\\"TRANSPORT\\\",\\n      \\\"title\\\": \\\"Train to Jaipur\\\",\\n      \\\"description\\\": \\\"Journey to the Pink City\\\",\\n      \\\"startHour\\\": 6,\\n      \\\"startMinute\\\": 0,\\n      \\\"endHour\\\": 10,\\n      \\\"endMinute\\\": 30,\\n      \\\"cost\\\": 1800.0\\n    }\\n  ]\\n}\\nRespond with ONLY valid JSON.\"\n      }\n    ]\n  },\n  \"contents\": [\n    {\n      \"role\": \"user\",\n      \"parts\": [\n        {\n          \"text\": \"A 3-day royal heritage trip to Jaipur exploring Amer Fort, City Palace, and traditional bazaars.\"\n        }\n      ]\n    }\n  ],\n  \"generationConfig\": {\n    \"responseMimeType\": \"application/json\",\n    \"temperature\": 0.4\n  }\n}"
+				},
+				"url": {
+					"raw": "https://generativelanguage.googleapis.com/v1beta/models/{{MODEL}}:generateContent?key={{GEMINI_API_KEY}}",
+					"protocol": "https",
+					"host": [
+						"generativelanguage",
+						"googleapis",
+						"com"
+					],
+					"path": [
+						"v1beta",
+						"models",
+						"{{MODEL}}:generateContent"
+					],
+					"query": [
+						{
+							"key": "key",
+							"value": "{{GEMINI_API_KEY}}"
+						}
+					]
+				},
+				"description": "Generates a structured cultural & royal heritage trip for Jaipur."
+			},
+			"response": []
+		},
+		{
+			"name": "4. Generate Itinerary - Custom User Prompt",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"system_instruction\": {\n    \"parts\": [\n      {\n        \"text\": \"You are an expert travel planner assistant and AI brain. Given a user travel prompt, extract key details and generate a comprehensive day-by-day itinerary in strict JSON format. All monetary costs MUST be in Indian Rupees (INR ₹).\\nExtract:\\n- destination\\n- durationDays\\n- transportMode\\n- keySpot\\nYour JSON response must match this schema:\\n{\\n  \\\"title\\\": \\\"Title\\\",\\n  \\\"destination\\\": \\\"City\\\",\\n  \\\"durationDays\\\": 3,\\n  \\\"transportMode\\\": \\\"Flight\\\",\\n  \\\"keySpot\\\": \\\"Main attraction\\\",\\n  \\\"activities\\\": [\\n    {\\n      \\\"dayNumber\\\": 1,\\n      \\\"activityType\\\": \\\"TRANSPORT\\\",\\n      \\\"title\\\": \\\"Activity title\\\",\\n      \\\"description\\\": \\\"Detailed activity description\\\",\\n      \\\"startHour\\\": 9,\\n      \\\"startMinute\\\": 0,\\n      \\\"endHour\\\": 11,\\n      \\\"endMinute\\\": 0,\\n      \\\"cost\\\": 1500.0\\n    }\\n  ]\\n}\\nRespond with ONLY valid JSON.\"\n      }\n    ]\n  },\n  \"contents\": [\n    {\n      \"role\": \"user\",\n      \"parts\": [\n        {\n          \"text\": \"Plan a 5-day adventure in Manali with snow trekking, paragliding at Solang Valley, and scenic mountain cafes.\"\n        }\n      ]\n    }\n  ],\n  \"generationConfig\": {\n    \"responseMimeType\": \"application/json\",\n    \"temperature\": 0.4\n  }\n}"
+				},
+				"url": {
+					"raw": "https://generativelanguage.googleapis.com/v1beta/models/{{MODEL}}:generateContent?key={{GEMINI_API_KEY}}",
+					"protocol": "https",
+					"host": [
+						"generativelanguage",
+						"googleapis",
+						"com"
+					],
+					"path": [
+						"v1beta",
+						"models",
+						"{{MODEL}}:generateContent"
+					],
+					"query": [
+						{
+							"key": "key",
+							"value": "{{GEMINI_API_KEY}}"
+						}
+					]
+				},
+				"description": "Send any custom natural language travel prompt and see the structured JSON returned by Gemini."
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "GEMINI_API_KEY",
+			"value": "YOUR_GEMINI_API_KEY_HERE",
+			"type": "string"
+		},
+		{
+			"key": "MODEL",
+			"value": "gemini-2.5-flash",
+			"type": "string"
+		}
+	]
+}
