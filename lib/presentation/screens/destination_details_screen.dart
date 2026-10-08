@@ -4,9 +4,9 @@ import '../../core/theme.dart';
 import '../../core/utils.dart';
 import '../../data/models/destination_model.dart';
 import '../../providers/trip_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../widgets/app_image.dart';
 import 'itinerary_screen.dart';
-import 'my_trips_screen.dart';
 
 class DestinationDetailsScreen extends StatefulWidget {
   final String destinationName;
@@ -24,6 +24,7 @@ class DestinationDetailsScreen extends StatefulWidget {
 
 class _DestinationDetailsScreenState extends State<DestinationDetailsScreen> {
   late DateTime _departureDate;
+  int _durationDays = 3;
 
   @override
   void initState() {
@@ -410,12 +411,81 @@ class _DestinationDetailsScreenState extends State<DestinationDetailsScreen> {
                 ),
               ),
 
+              // Interactive Duration Selector
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                margin: const EdgeInsets.only(bottom: 14),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.surfaceTile2 : AppColors.surfacePearl,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isDark ? Colors.white12 : AppColors.hairline,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.schedule_outlined,
+                      size: 16,
+                      color: isDark ? AppColors.primaryOnDark : AppColors.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Duration: ',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: isDark ? AppColors.bodyMuted : AppColors.inkMuted80,
+                      ),
+                    ),
+                    Text(
+                      '$_durationDays Days',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? Colors.white : AppColors.ink,
+                      ),
+                    ),
+                    const Spacer(),
+                    ...[2, 3, 4, 5, 7].map((days) {
+                      final isSelected = _durationDays == days;
+                      return Padding(
+                        padding: const EdgeInsets.only(left: 6),
+                        child: InkWell(
+                          onTap: () => setState(() => _durationDays = days),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : (isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05)),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '${days}D',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                color: isSelected
+                                    ? Colors.white
+                                    : (isDark ? Colors.white70 : AppColors.ink),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+
               // Action button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    final prompt = 'Plan a 3-day travel itinerary to ${dest.name} exploring top attractions, culture, and dining.';
+                    final prompt = 'Plan a $_durationDays-day travel itinerary to ${dest.name} exploring top attractions, culture, and dining.';
                     final tripProvider = Provider.of<TripProvider>(context, listen: false);
                     
                     showDialog(
@@ -431,7 +501,7 @@ class _DestinationDetailsScreenState extends State<DestinationDetailsScreen> {
                                 const CircularProgressIndicator(),
                                 const SizedBox(height: 16),
                                 Text(
-                                  'Crafting itinerary for ${dest.name}...',
+                                  'Crafting $_durationDays-day itinerary for ${dest.name}...',
                                   style: Theme.of(context).textTheme.bodyLarge,
                                 ),
                               ],
@@ -441,10 +511,11 @@ class _DestinationDetailsScreenState extends State<DestinationDetailsScreen> {
                       ),
                     );
 
-                    tripProvider.createTrip(prompt, _departureDate).then((_) {
+                    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                    tripProvider.createTrip(prompt, _departureDate, userId: authProvider.currentUser?.id).then((success) {
                       if (!context.mounted) return;
                       Navigator.pop(context); // Dismiss loading dialog
-                      if (tripProvider.trips.isNotEmpty) {
+                      if (success && tripProvider.trips.isNotEmpty) {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -452,15 +523,17 @@ class _DestinationDetailsScreenState extends State<DestinationDetailsScreen> {
                           ),
                         );
                       } else {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const MyTripsScreen()),
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(tripProvider.errorMessage ?? 'Trip not found'),
+                            backgroundColor: Colors.redAccent.shade700,
+                          ),
                         );
                       }
                     });
                   },
                   icon: const Icon(Icons.auto_awesome, size: 20),
-                  label: Text('Plan a 3-Day Trip to ${dest.name} with AI'),
+                  label: Text('Plan a $_durationDays-Day Trip to ${dest.name} with AI'),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),

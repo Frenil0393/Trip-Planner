@@ -57,8 +57,15 @@ class AppImage extends StatelessWidget {
         imagePath!,
         width: width,
         height: height,
-        fit: fit,
-        errorBuilder: (context, error, stackTrace) => placeholder(),
+        errorBuilder: (context, error, stackTrace) {
+          return Image.asset(
+            'assets/images/spot_default.jpg',
+            width: width,
+            height: height,
+            fit: fit,
+            errorBuilder: (c, e, s) => placeholder(),
+          );
+        },
         loadingBuilder: (context, child, progress) {
           if (progress == null) return child;
           return Container(

@@ -18,7 +18,21 @@ class AuthProvider with ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   AuthProvider() {
-    // Check if a session exists or start with logged out
+    restoreSession();
+  }
+
+  /// Automatically restores active session from SQLite/Web Storage on app launch.
+  Future<void> restoreSession() async {
+    try {
+      final activeUserId = await _dbHelper.getActiveSession();
+      if (activeUserId != null && activeUserId.isNotEmpty) {
+        final user = await _dbHelper.getUserById(activeUserId);
+        if (user != null) {
+          _currentUser = user;
+          notifyListeners();
+        }
+      }
+    } catch (_) {}
   }
 
   /// Clears current error message.
@@ -45,6 +59,7 @@ class AuthProvider with ChangeNotifier {
       final user = await _dbHelper.authenticateUser(cleanEmail, password);
       if (user != null) {
         _currentUser = user;
+        await _dbHelper.saveActiveSession(user.id);
         _errorMessage = null;
         _isLoading = false;
         notifyListeners();
@@ -108,6 +123,7 @@ class AuthProvider with ChangeNotifier {
       final success = await _dbHelper.registerUser(newUser, password);
       if (success) {
         _currentUser = newUser;
+        await _dbHelper.saveActiveSession(newUser.id);
         _errorMessage = null;
         _isLoading = false;
         notifyListeners();
@@ -126,11 +142,14 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  /// Logs the user out of the application.
-  void signOut() {
+  /// Logs the user out of the application and clears the session.
+  Future<void> signOut() async {
     _currentUser = null;
     _errorMessage = null;
     notifyListeners();
+    try {
+      await _dbHelper.clearActiveSession();
+    } catch (_) {}
   }
 
   /// Resets password for a given email address.

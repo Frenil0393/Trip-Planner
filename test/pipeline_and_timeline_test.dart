@@ -1,7 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:trip_planner/data/services/ai_service.dart';
 import 'package:trip_planner/data/services/travel_service.dart';
 import 'package:trip_planner/data/local_db/db_helper.dart';
+import 'package:trip_planner/providers/trip_provider.dart';
 
 void main() {
   group('5-Step AI & Local DB Travel Planning Pipeline Tests', () {
@@ -9,7 +11,9 @@ void main() {
     late TravelService travelService;
     late DatabaseHelper dbHelper;
 
-    setUp(() {
+    setUp(() async {
+      DatabaseHelper.customDatabasePath = inMemoryDatabasePath;
+      await DatabaseHelper.instance.close();
       aiService = AIService(apiKey: 'dummy_test_key');
       travelService = TravelService();
       dbHelper = DatabaseHelper.instance;
@@ -172,5 +176,51 @@ void main() {
       expect(day2Events.length, 5);
       expect(activities.length, 10);
     });
+
+    test('User requests 4 days ("4-day trip to Goa") generates exact 4 days itinerary with activities for all 4 days', () async {
+      final provider = TripProvider();
+      final startDate = DateTime(2026, 8, 1);
+      final success = await provider.createTrip('4-day trip to Goa with beaches and seafood', startDate);
+      expect(success, true);
+      expect(provider.trips.isNotEmpty, true);
+
+      final trip = provider.trips.last;
+      expect(trip.destinationName, 'Goa');
+      expect(trip.durationInDays, 4);
+
+      await provider.loadActivitiesForTrip(trip.id);
+      final days = provider.currentActivities.map((a) => a.dayNumber).toSet();
+      expect(days, containsAll([1, 2, 3, 4]));
+      expect(days.length, 4);
+    });
+
+    test('High-level duration prompt (e.g. 14 days) shows appropriate limit message and does not create trip', () async {
+      final provider = TripProvider();
+      final initialTripCount = provider.trips.length;
+      final success = await provider.createTrip('14 days trip to Goa with beaches and parties', DateTime.now());
+      expect(success, false);
+      expect(provider.errorMessage, contains('Trips can only be planned for up to 7 days'));
+      expect(provider.trips.length, initialTripCount);
+    });
+
+    test('Unsupported destination prompt ("I go to junagadh") gives Trip not found and no dummy data', () async {
+      final parsed = await aiService.parsePrompt('I go to junagadh');
+      expect(parsed['error'], 'Trip not found');
+      expect(parsed['destination'], isNull);
+
+      // Verify dbHelper rejects building transport/hotels for Junagadh instead of dummy data
+      expect(() => dbHelper.searchTransport(destination: 'Junagadh'), throwsA(isA<Exception>()));
+      expect(() => dbHelper.searchHotels(destination: 'Junagadh'), throwsA(isA<Exception>()));
+
+      // Verify TripProvider does NOT create dummy trip records and sets errorMessage to Trip not found
+      final provider = TripProvider();
+      final initialTripCount = provider.trips.length;
+      final success = await provider.createTrip('I go to junagadh', DateTime.now());
+      expect(success, false);
+      expect(provider.errorMessage, 'Trip not found');
+      expect(provider.trips.length, initialTripCount);
+    });
   });
 }
+
+

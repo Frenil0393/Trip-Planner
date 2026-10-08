@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:trip_planner/data/local_db/db_helper.dart';
 import 'package:trip_planner/data/models/user_model.dart';
 import 'package:trip_planner/providers/auth_provider.dart';
 
@@ -40,7 +42,9 @@ void main() {
   group('AuthProvider Tests', () {
     late AuthProvider auth;
 
-    setUp(() {
+    setUp(() async {
+      DatabaseHelper.customDatabasePath = inMemoryDatabasePath;
+      await DatabaseHelper.instance.close();
       auth = AuthProvider();
     });
 

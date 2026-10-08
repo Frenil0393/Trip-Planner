@@ -5,7 +5,6 @@ import '../../core/utils.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/trip_provider.dart';
 import '../../providers/ui_provider.dart';
-import '../../core/config.dart';
 import 'auth_gate.dart';
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -114,72 +113,111 @@ class ProfileScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-          _buildSectionHeader(context, 'LLM API Configuration & Demo'),
+          _buildSectionHeader(context, 'AI Engine & Intelligence'),
           _buildUtilityCard(
             context,
             child: Column(
               children: [
                 ListTile(
-                  leading: const Icon(Icons.cloud_queue_rounded, color: AppColors.primary),
-                  title: Text('Google Cloud Project', style: Theme.of(context).textTheme.bodyLarge),
-                  subtitle: const Text(AppConfig.projectName, style: TextStyle(fontSize: 12, fontFamily: 'monospace')),
-                ),
-                const Divider(height: 1, indent: 16, endIndent: 16),
-                ListTile(
-                  leading: const Icon(Icons.pin_outlined, color: AppColors.primary),
-                  title: Text('Project Number', style: Theme.of(context).textTheme.bodyLarge),
-                  subtitle: const Text(AppConfig.projectNumber, style: TextStyle(fontSize: 12, fontFamily: 'monospace')),
-                ),
-                const Divider(height: 1, indent: 16, endIndent: 16),
-                ListTile(
-                  leading: const Icon(Icons.psychology_rounded, color: AppColors.primary),
-                  title: Text('LLM Model', style: Theme.of(context).textTheme.bodyLarge),
-                  subtitle: const Text(AppConfig.geminiModel, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary)),
-                ),
-                const Divider(height: 1, indent: 16, endIndent: 16),
-                ListTile(
-                  leading: const Icon(Icons.key_rounded, color: AppColors.primary),
-                  title: Text('Gemini API Key', style: Theme.of(context).textTheme.bodyLarge),
-                  subtitle: Text(
-                    tripProvider.currentApiKey.length > 12
-                        ? '${tripProvider.currentApiKey.substring(0, 6)}...${tripProvider.currentApiKey.substring(tripProvider.currentApiKey.length - 6)}'
-                        : tripProvider.currentApiKey,
-                    style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                  leading: const Icon(Icons.auto_awesome_rounded, color: AppColors.primary),
+                  title: Text('Smart AI Engine', style: Theme.of(context).textTheme.bodyLarge),
+                  subtitle: const Text('Google Gemini 1.5 Flash + Smart Scheduler', style: TextStyle(fontSize: 12)),
+                  trailing: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF34C759).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      'Active',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF34C759),
+                      ),
+                    ),
                   ),
-                  trailing: TextButton(
-                    onPressed: () {
-                      final ctrl = TextEditingController(text: tripProvider.currentApiKey);
-                      showDialog(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          title: const Text('Edit Gemini API Key'),
-                          content: TextField(
-                            controller: ctrl,
-                            decoration: const InputDecoration(
-                              labelText: 'API Key',
-                              hintText: 'Enter API Key',
-                            ),
+                ),
+                const Divider(height: 1, indent: 16, endIndent: 16),
+                Theme(
+                  data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                  child: ExpansionTile(
+                    leading: const Icon(Icons.tune_rounded, color: AppColors.primary),
+                    title: Text('API Configuration (Demo)', style: Theme.of(context).textTheme.bodyLarge),
+                    subtitle: const Text('Configure Gemini API Key for viva demo', style: TextStyle(fontSize: 12)),
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.surfaceTile3 : AppColors.surfacePearl,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: isDark ? Colors.white10 : AppColors.hairline),
                           ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx),
-                              child: const Text('Cancel'),
-                            ),
-                            ElevatedButton(
-                              onPressed: () {
-                                tripProvider.updateApiKey(ctrl.text.trim());
-                                Navigator.pop(ctx);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Gemini API Key updated.')),
-                                );
-                              },
-                              child: const Text('Save'),
-                            ),
-                          ],
+                          child: Row(
+                            children: [
+                              const Icon(Icons.key_rounded, size: 18, color: AppColors.primary),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Gemini API Key', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      tripProvider.currentApiKey.length > 12
+                                          ? '${tripProvider.currentApiKey.substring(0, 6)}...${tripProvider.currentApiKey.substring(tripProvider.currentApiKey.length - 6)}'
+                                          : (tripProvider.currentApiKey.isEmpty ? 'Not set (Using offline smart catalog)' : tripProvider.currentApiKey),
+                                      style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  textStyle: const TextStyle(fontSize: 12),
+                                ),
+                                onPressed: () {
+                                  final ctrl = TextEditingController(text: tripProvider.currentApiKey);
+                                  showDialog(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      title: const Text('Edit Gemini API Key'),
+                                      content: TextField(
+                                        controller: ctrl,
+                                        decoration: const InputDecoration(
+                                          labelText: 'API Key',
+                                          hintText: 'Enter API Key',
+                                        ),
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(ctx),
+                                          child: const Text('Cancel'),
+                                        ),
+                                        ElevatedButton(
+                                          onPressed: () {
+                                            tripProvider.updateApiKey(ctrl.text.trim());
+                                            Navigator.pop(ctx);
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(content: Text('Gemini API Key updated.')),
+                                            );
+                                          },
+                                          child: const Text('Save'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                                child: const Text('Change'),
+                              ),
+                            ],
+                          ),
                         ),
-                      );
-                    },
-                    child: const Text('Change'),
+                      ),
+                    ],
                   ),
                 ),
               ],

@@ -104,8 +104,12 @@ class TripModel {
   /// Latency in milliseconds for LLM round-trip.
   final int latencyMs;
 
+  /// Optional user identifier who owns this trip (for user isolation).
+  final String? userId;
+
   TripModel({
     required this.id,
+    this.userId,
     required this.title,
     required this.originalPrompt,
     this.destinationId,
@@ -141,6 +145,9 @@ class TripModel {
     return diff >= 0 ? diff + 1 : 1;
   }
 
+  /// Alias for durationInDays
+  int get durationDays => durationInDays;
+
   /// Convenience status checks
   bool get isUpcoming => status.toUpperCase() == 'UPCOMING';
   bool get isActive => status.toUpperCase() == 'ACTIVE';
@@ -164,6 +171,7 @@ class TripModel {
   /// Creates a copy of this [TripModel] with updated fields.
   TripModel copyWith({
     String? id,
+    String? userId,
     String? title,
     String? originalPrompt,
     String? destinationId,
@@ -182,6 +190,7 @@ class TripModel {
   }) {
     return TripModel(
       id: id ?? this.id,
+      userId: userId ?? this.userId,
       title: title ?? this.title,
       originalPrompt: originalPrompt ?? this.originalPrompt,
       destinationId: destinationId ?? this.destinationId,
@@ -208,6 +217,7 @@ class TripModel {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+      'user_id': userId,
       'title': title,
       'original_prompt': originalPrompt,
       'destination_id': destinationId,
@@ -229,6 +239,7 @@ class TripModel {
   factory TripModel.fromMap(Map<String, dynamic> map, {List<ActivityModel> activities = const []}) {
     return TripModel(
       id: (map['id'] ?? '') as String,
+      userId: (map['user_id'] ?? map['userId']) as String?,
       title: (map['title'] ?? '') as String,
       originalPrompt: (map['original_prompt'] ?? map['originalPrompt'] ?? '') as String,
       destinationId: (map['destination_id'] ?? map['destinationId']) as String?,

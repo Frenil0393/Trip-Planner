@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/trip_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../core/utils.dart';
 import '../../core/theme.dart';
 import '../widgets/app_image.dart';
@@ -22,7 +23,9 @@ class _MyTripsScreenState extends State<MyTripsScreen> with SingleTickerProvider
     _tabController = TabController(length: 3, vsync: this);
     Future.microtask(() {
       if (!mounted) return;
-      Provider.of<TripProvider>(context, listen: false).loadTrips();
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      Provider.of<TripProvider>(context, listen: false)
+          .loadTrips(userId: auth.currentUser?.id);
     });
   }
 
@@ -38,6 +41,10 @@ class _MyTripsScreenState extends State<MyTripsScreen> with SingleTickerProvider
     if (query.contains('tokyo')) return 'assets/images/tokyo.jpg';
     if (query.contains('rome')) return 'assets/images/rome.jpg';
     if (query.contains('swiss') || query.contains('alps')) return 'assets/images/swiss_alps.jpg';
+    if (query.contains('goa')) return 'assets/images/goa.jpg';
+    if (query.contains('jaipur') || query.contains('rajasthan')) return 'assets/images/jaipur.jpg';
+    if (query.contains('manali') || query.contains('himachal')) return 'assets/images/manali.jpg';
+    if (query.contains('kerala')) return 'assets/images/kerala.jpg';
     return 'assets/images/trip_placeholder.jpg';
   }
 
@@ -270,7 +277,7 @@ class _MyTripsScreenState extends State<MyTripsScreen> with SingleTickerProvider
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            '${trip.durationDays} Days Itinerary',
+                            '${trip.durationInDays} Days Itinerary',
                             style: TextStyle(
                               fontSize: 12,
                               color: isDark ? AppColors.bodyMuted : AppColors.inkMuted80,

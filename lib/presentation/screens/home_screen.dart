@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../data/models/models.dart';
+import '../../data/services/ai_service.dart';
 import '../../providers/trip_provider.dart';
+import '../../providers/auth_provider.dart';
 import 'my_trips_screen.dart';
 import 'profile_screen.dart';
 import 'destination_details_screen.dart';
@@ -22,6 +24,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _promptController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 7));
+  int _selectedDurationDays = 3;
 
   @override
   void dispose() {
@@ -30,27 +33,65 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  void _generateTrip(String prompt) {
+  void _generateTrip(String prompt) async {
     if (prompt.trim().isEmpty) return;
     final tripProvider = Provider.of<TripProvider>(context, listen: false);
-    tripProvider
-        .createTrip(prompt.trim(), _selectedDate)
-        .then((_) {
-      if (!mounted) return;
-      if (tripProvider.trips.isNotEmpty) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ItineraryScreen(trip: tripProvider.trips.last),
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final success = await tripProvider.createTrip(
+      prompt.trim(),
+      _selectedDate,
+      defaultDurationDays: _selectedDurationDays,
+      userId: authProvider.currentUser?.id,
+    );
+    if (!mounted) return;
+    if (!success) {
+      final err = tripProvider.errorMessage ?? 'Trip not found';
+      final isDurationError = err.contains('7 days');
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(
+                isDurationError ? Icons.schedule : Icons.search_off,
+                color: Colors.white,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  err,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
           ),
-        );
-      } else {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const MyTripsScreen()),
-        );
-      }
-    });
+          backgroundColor: isDurationError ? Colors.orange.shade800 : Colors.redAccent.shade700,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (tripProvider.trips.isNotEmpty) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ItineraryScreen(trip: tripProvider.trips.last),
+        ),
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const MyTripsScreen()),
+      );
+    }
   }
 
   void _scrollToDestinations() {
@@ -177,6 +218,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           controller: _promptController,
                           maxLines: null,
                           minLines: 1,
+                          onChanged: (_) {
+                            if (tripProvider.errorMessage != null) {
+                              tripProvider.clearError();
+                            }
+                          },
                           decoration: InputDecoration(
                             hintText: 'e.g. 3-day romantic weekend in Paris focusing on art',
                             suffixIcon: Padding(
@@ -234,6 +280,47 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                         ],
+                        if (tripProvider.errorMessage != null && tripProvider.errorMessage!.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Builder(
+                            builder: (context) {
+                              final isDuration = tripProvider.errorMessage!.contains('7 days');
+                              final bannerColor = isDuration ? Colors.orange : Colors.redAccent;
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: bannerColor.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: bannerColor.withValues(alpha: 0.35)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      isDuration ? Icons.schedule_outlined : Icons.search_off,
+                                      color: bannerColor,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        tripProvider.errorMessage!,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: bannerColor,
+                                        ),
+                                      ),
+                                    ),
+                                    InkWell(
+                                      onTap: () => tripProvider.clearError(),
+                                      child: Icon(Icons.close, size: 18, color: bannerColor),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ],
                         const SizedBox(height: 16),
                         // Redesigned Departure Date Selector
                         DepartureDateSelector(
@@ -243,6 +330,84 @@ class _HomeScreenState extends State<HomeScreen> {
                               _selectedDate = newDate;
                             });
                           },
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Interactive Duration Selector
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.surfaceTile2 : AppColors.surfacePearl,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: isDark ? Colors.white12 : AppColors.hairline,
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.schedule_outlined,
+                                size: 18,
+                                color: isDark ? AppColors.primaryOnDark : AppColors.primary,
+                              ),
+                              const SizedBox(width: 10),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'TRIP DURATION',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.8,
+                                      color: isDark ? AppColors.bodyMuted : AppColors.inkMuted80,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '$_selectedDurationDays Days',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDark ? Colors.white : AppColors.ink,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const Spacer(),
+                              ...[2, 3, 4, 5, 7].map((days) {
+                                final isSelected = _selectedDurationDays == days;
+                                return Padding(
+                                  padding: const EdgeInsets.only(left: 6),
+                                  child: InkWell(
+                                    onTap: () => setState(() => _selectedDurationDays = days),
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? AppColors.primary
+                                            : (isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05)),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Text(
+                                        '${days}D',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                          color: isSelected
+                                              ? Colors.white
+                                              : (isDark ? Colors.white70 : AppColors.ink),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 16),
 
@@ -363,6 +528,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                 borderRadius: BorderRadius.circular(18),
                                 onTap: () {
                                   _promptController.text = template['prompt'];
+                                  final days = (template['durationDays'] as int?) ??
+                                      AIService.extractDurationDays(template['prompt']);
+                                  if (days != null) {
+                                    setState(() => _selectedDurationDays = days);
+                                  }
                                   _generateTrip(template['prompt']);
                                 },
                                 child: Column(
@@ -444,6 +614,10 @@ class _HomeScreenState extends State<HomeScreen> {
       borderRadius: BorderRadius.circular(9999),
       onTap: () {
         _promptController.text = prompt;
+        final days = AIService.extractDurationDays(prompt);
+        if (days != null) {
+          setState(() => _selectedDurationDays = days);
+        }
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),

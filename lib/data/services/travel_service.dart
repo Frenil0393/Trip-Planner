@@ -45,19 +45,20 @@ class TravelService {
 
     for (int day = 1; day <= durationDays; day++) {
       final currentDay = startDate.add(Duration(days: day - 1));
+      final isLastDay = (day == durationDays);
 
       if (day == 1) {
-        // Step 4 Day 1: Strict realistic time blocks as specified:
+        // Step 4 Day 1: Strict realistic time blocks:
         // 09:00 AM – 11:30 AM: Train/Transport departure to destination
         // 12:00 PM – 01:30 PM: Lunch at a local restaurant
         // 02:00 PM – 03:00 PM: Hotel check-in
-        // 04:00 PM – 06:00 PM: Sightseeing at the Eiffel Tower (Key Spot)
+        // 04:00 PM – 06:00 PM: Sightseeing at the Key Spot
         // 07:30 PM – 09:30 PM: Dinner at a local restaurant
 
         final lunch = lunches[lunchIdx % lunches.length];
         lunchIdx++;
 
-        final primarySpot = spots.isNotEmpty ? spots[0] : null;
+        final primarySpot = spots.isNotEmpty ? spots[spotIdx % spots.length] : null;
         spotIdx++;
 
         final dinner = dinners[dinnerIdx % dinners.length];
@@ -142,9 +143,9 @@ class TravelService {
           ),
         ]);
       } else {
-        // Subsequent Days: Morning breakfast, morning sight, lunch, afternoon sight, dinner
-        final daySpot1 = spots.length > spotIdx ? spots[spotIdx++] : spots.first;
-        final daySpot2 = spots.length > spotIdx ? spots[spotIdx++] : spots.last;
+        // Subsequent Days: Morning breakfast, morning sight, lunch, afternoon sight, dinner / return transit
+        final daySpot1 = spots[spotIdx++ % spots.length];
+        final daySpot2 = spots[spotIdx++ % spots.length];
         final dayLunch = lunches[lunchIdx++ % lunches.length];
         final dayDinner = dinners[dinnerIdx++ % dinners.length];
 
@@ -155,8 +156,12 @@ class TravelService {
             tripId: tripId,
             dayNumber: day,
             activityType: 'HOTEL',
-            title: 'Breakfast at ${hotel.name}',
-            description: 'Morning breakfast and preparation for the day.',
+            title: isLastDay
+                ? 'Breakfast & Hotel Check-out at ${hotel.name}'
+                : 'Breakfast at ${hotel.name}',
+            description: isLastDay
+                ? 'Morning breakfast, packing up luggage, and hotel check-out formalities.'
+                : 'Morning breakfast and preparation for the day.',
             startTime: DateTime(currentDay.year, currentDay.month, currentDay.day, 8, 30),
             endTime: DateTime(currentDay.year, currentDay.month, currentDay.day, 10, 0),
             cost: 350.0,
@@ -201,7 +206,9 @@ class TravelService {
             tripId: tripId,
             dayNumber: day,
             activityType: 'SIGHTSEEING',
-            title: 'Visit ${daySpot2.name}',
+            title: isLastDay
+                ? 'Final Viewpoint & Souvenirs at ${daySpot2.name}'
+                : 'Visit ${daySpot2.name}',
             description: daySpot2.description,
             startTime: DateTime(currentDay.year, currentDay.month, currentDay.day, 15, 30),
             endTime: DateTime(currentDay.year, currentDay.month, currentDay.day, 18, 0),
@@ -212,21 +219,37 @@ class TravelService {
                 ? 'Entry Fee: ₹${daySpot2.entryFee.toInt()}'
                 : 'Free Admission',
           ),
-          // 07:30 PM – 09:30 PM: FOOD (Dinner)
-          ActivityModel(
-            id: _uuid.v4(),
-            tripId: tripId,
-            dayNumber: day,
-            activityType: 'FOOD',
-            title: 'Dinner at ${dayDinner.restaurantName}',
-            description: dayDinner.description,
-            startTime: DateTime(currentDay.year, currentDay.month, currentDay.day, 19, 30),
-            endTime: DateTime(currentDay.year, currentDay.month, currentDay.day, 21, 30),
-            cost: dayDinner.averageCost,
-            location: dayDinner.restaurantName,
-            imageUrl: 'assets/images/dining_default.jpg',
-            notes: 'Meal: Dinner',
-          ),
+          // 07:30 PM – 09:30 PM: FOOD / RETURN TRANSIT
+          if (isLastDay && durationDays > 1)
+            ActivityModel(
+              id: _uuid.v4(),
+              tripId: tripId,
+              dayNumber: day,
+              activityType: 'TRANSPORT',
+              title: 'Return ${transport.mode} Departure from $destination',
+              description: 'Board return journey from $destination Central Station / Airport with wonderful trip memories.',
+              startTime: DateTime(currentDay.year, currentDay.month, currentDay.day, 19, 0),
+              endTime: DateTime(currentDay.year, currentDay.month, currentDay.day, 21, 30),
+              cost: transport.cost,
+              location: '$destination Terminus',
+              imageUrl: _getTransportImage(transport.mode, transport.title),
+              notes: 'Return Transit',
+            )
+          else
+            ActivityModel(
+              id: _uuid.v4(),
+              tripId: tripId,
+              dayNumber: day,
+              activityType: 'FOOD',
+              title: 'Dinner at ${dayDinner.restaurantName}',
+              description: dayDinner.description,
+              startTime: DateTime(currentDay.year, currentDay.month, currentDay.day, 19, 30),
+              endTime: DateTime(currentDay.year, currentDay.month, currentDay.day, 21, 30),
+              cost: dayDinner.averageCost,
+              location: dayDinner.restaurantName,
+              imageUrl: 'assets/images/dining_default.jpg',
+              notes: 'Meal: Dinner',
+            ),
         ]);
       }
     }
@@ -240,19 +263,39 @@ class TravelService {
     if (lower.contains('louvre')) return 'assets/images/louvre.jpg';
     if (lower.contains('notre') || lower.contains('cité')) return 'assets/images/paris.jpg';
     if (lower.contains('colosseum') || lower.contains('forum')) return 'assets/images/colosseum.jpg';
-    if (lower.contains('vatican') || lower.contains('peter') || lower.contains('sistine')) return 'assets/images/vatican.jpg';
+    if (lower.contains('vatican') || lower.contains('peter') || lower.contains('sistine') || lower.contains('basilica')) {
+      return 'assets/images/vatican.jpg';
+    }
     if (lower.contains('shibuya')) return 'assets/images/shibuya.jpg';
     if (lower.contains('senso') || lower.contains('asakusa')) return 'assets/images/sensoji.jpg';
     if (lower.contains('akihabara')) return 'assets/images/tokyo.jpg';
     if (lower.contains('matterhorn')) return 'assets/images/matterhorn.jpg';
-    if (lower.contains('jungfrau')) return 'assets/images/swiss_alps.jpg';
+    if (lower.contains('jungfrau') || lower.contains('solang') || lower.contains('rohtang')) {
+      return 'assets/images/swiss_alps.jpg';
+    }
     if (lower.contains('trevi') || lower.contains('spanish')) return 'assets/images/rome.jpg';
+    if (lower.contains('baga') || lower.contains('aguada') || lower.contains('anjuna') || lower.contains('calangute')) {
+      return 'assets/images/goa.jpg';
+    }
+    if (lower.contains('amber') || lower.contains('hawa') || lower.contains('city palace') || lower.contains('nahargarh')) {
+      return 'assets/images/jaipur.jpg';
+    }
+    if (lower.contains('hadimba') || lower.contains('jogini')) {
+      return 'assets/images/manali.jpg';
+    }
+    if (lower.contains('alleppey') || lower.contains('backwaters') || lower.contains('munnar') || lower.contains('houseboat')) {
+      return 'assets/images/kerala.jpg';
+    }
 
     final destLower = destination.toLowerCase();
     if (destLower.contains('paris')) return 'assets/images/paris.jpg';
     if (destLower.contains('rome')) return 'assets/images/rome.jpg';
     if (destLower.contains('tokyo')) return 'assets/images/tokyo.jpg';
     if (destLower.contains('swiss')) return 'assets/images/swiss_alps.jpg';
+    if (destLower.contains('goa')) return 'assets/images/goa.jpg';
+    if (destLower.contains('jaipur') || destLower.contains('rajasthan')) return 'assets/images/jaipur.jpg';
+    if (destLower.contains('manali') || destLower.contains('himachal')) return 'assets/images/manali.jpg';
+    if (destLower.contains('kerala')) return 'assets/images/kerala.jpg';
 
     return 'assets/images/spot_default.jpg';
   }

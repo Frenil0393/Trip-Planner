@@ -90,6 +90,39 @@ class _ItineraryScreenState extends State<ItineraryScreen> {
                   ),
             ),
             actions: [
+              IconButton(
+                icon: const Icon(Icons.delete_outline),
+                tooltip: 'Delete Trip',
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Delete Trip'),
+                      content: Text(
+                        'Are you sure you want to delete "${widget.trip.title}"? This cannot be undone.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('Cancel'),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade700),
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            provider.deleteTrip(widget.trip.id);
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Deleted "${widget.trip.title}"')),
+                            );
+                          },
+                          child: const Text('Delete'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
               // Active status badge
               Container(
                 margin: const EdgeInsets.only(right: 16),
@@ -240,9 +273,9 @@ class _ItineraryScreenState extends State<ItineraryScreen> {
                           ),
                     ),
                     const SizedBox(height: 8),
-                    // Prominent Departure Date & Meta Row
+                    // Prominent Departure Date & Meta Row (Responsive Wrap to prevent overflow)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
                         color: isDark ? AppColors.surfaceTile3 : AppColors.surfacePearl,
                         borderRadius: BorderRadius.circular(10),
@@ -251,6 +284,7 @@ class _ItineraryScreenState extends State<ItineraryScreen> {
                         ),
                       ),
                       child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           const Icon(
                             Icons.flight_takeoff,
@@ -258,35 +292,56 @@ class _ItineraryScreenState extends State<ItineraryScreen> {
                             color: AppColors.primary,
                           ),
                           const SizedBox(width: 8),
-                          Text(
-                            'Departure: ',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: isDark ? AppColors.bodyMuted : AppColors.inkMuted80,
-                            ),
-                          ),
-                          Text(
-                            AppUtils.formatDepartureDate(widget.trip.startDate),
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: isDark ? Colors.white : AppColors.ink,
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            '${widget.trip.durationInDays} Days (${widget.trip.formattedDateRange})',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? AppColors.primaryOnDark : AppColors.primary,
+                          Expanded(
+                            child: Wrap(
+                              alignment: WrapAlignment.spaceBetween,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 8,
+                              runSpacing: 4,
+                              children: [
+                                Text.rich(
+                                  TextSpan(
+                                    children: [
+                                      TextSpan(
+                                        text: 'Departure: ',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                          color: isDark ? AppColors.bodyMuted : AppColors.inkMuted80,
+                                        ),
+                                      ),
+                                      TextSpan(
+                                        text: AppUtils.formatDepartureDate(widget.trip.startDate),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: isDark ? Colors.white : AppColors.ink,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: (isDark ? AppColors.primaryOnDark : AppColors.primary).withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    '${widget.trip.durationInDays} Days (${widget.trip.formattedDateRange})',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark ? AppColors.primaryOnDark : AppColors.primary,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
                     ),
-
                   ],
                 ),
               ),
@@ -299,14 +354,18 @@ class _ItineraryScreenState extends State<ItineraryScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Trip Progress: $completedCount of $totalCount activities completed',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: isDark ? AppColors.bodyMuted : AppColors.inkMuted80,
+                Expanded(
+                  child: Text(
+                    'Trip Progress: $completedCount of $totalCount activities completed',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: isDark ? AppColors.bodyMuted : AppColors.inkMuted80,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                const SizedBox(width: 8),
                 Text(
                   '${((completedCount / totalCount) * 100).toInt()}%',
                   style: const TextStyle(

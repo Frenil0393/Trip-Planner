@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import '../../core/config.dart';
+import '../local_db/travel_catalog.dart';
 
 /// Service responsible for communicating with Google Gemini LLM API
 /// to convert natural language travel prompts into structured trip itineraries.
@@ -46,6 +48,10 @@ class AIExecutionResult {
 /// Service responsible for communicating with Google Gemini LLM API
 /// to convert natural language travel prompts into structured trip itineraries.
 class AIService {
+  static const int maxSupportedDays = 7;
+  static const String maxDurationMessage =
+      'Trips can only be planned for up to 7 days (e.g. 3, 5, or 7 days). Please choose up to 7 days.';
+
   String apiKey;
   final String modelName;
 
@@ -61,6 +67,25 @@ class AIService {
 
   /// Parses a natural language prompt using Gemini and captures full execution details.
   Future<AIExecutionResult> parsePromptWithDetails(String prompt) async {
+    // 0. Pre-validate high-level durations exceeding maxSupportedDays (e.g., 14 days, 2 weeks)
+    final rawDays = extractRawDurationDays(prompt);
+    if (rawDays != null && rawDays > maxSupportedDays) {
+      final errorData = <String, dynamic>{
+        'error': maxDurationMessage,
+        'destination': null,
+      };
+      const encoder = JsonEncoder.withIndent('  ');
+      return AIExecutionResult(
+        isLiveApi: false,
+        modelUsed: 'Duration Policy Validator',
+        latencyMs: 1,
+        rawPrompt: prompt,
+        rawJsonResponse: encoder.convert(errorData),
+        parsedData: errorData,
+        errorMessage: maxDurationMessage,
+      );
+    }
+
     final stopwatch = Stopwatch()..start();
 
     if (apiKey.isNotEmpty) {
@@ -75,10 +100,16 @@ class AIService {
           systemInstruction: Content.system(
             'You are an expert travel planner assistant and AI brain. Given a user travel prompt, '
             'extract key details and generate a comprehensive day-by-day itinerary in strict JSON format. '
-            'All monetary costs MUST be in Indian Rupees (INR ₹). '
-            'Extract:\n'
-            '- destination (e.g., Goa, Jaipur, Manali, Kerala, Paris, Tokyo, Rome, Swiss Alps)\n'
-            '- durationDays (e.g., 2, 3, 4, 5)\n'
+            'Supported catalog destinations are ONLY: Goa, Jaipur, Manali, Kerala, Paris, Tokyo, Rome, Swiss Alps. '
+            'If the prompt asks for a trip to any destination NOT in this list (e.g. Junagadh, London, etc.) '
+            'or if no valid travel plan can be made, you MUST respond with: {"error": "Trip not found", "destination": null}.\n'
+            'If the prompt requests a duration longer than 7 days (e.g. 14 days, 10 days, 2 weeks), '
+            'you MUST respond with: {"error": "Trips can only be planned for up to 7 days (e.g. 3, 5, or 7 days). Please choose up to 7 days.", "destination": null}.\n'
+            'Do NOT invent itineraries or dummy data for unsupported destinations.\n'
+            'All monetary costs MUST be in Indian Rupees (INR ₹).\n'
+            'When a supported destination is requested, extract:\n'
+            '- destination (MUST be one of: Goa, Jaipur, Manali, Kerala, Paris, Tokyo, Rome, Swiss Alps)\n'
+            '- durationDays (Extract the EXACT duration in days requested by the user, e.g. 1, 2, 3, 4, 5, 6, 7. If the user asks for 4 days or a 4-day trip, durationDays MUST be 4)\n'
             '- transportMode (e.g., Train, Flight, Bus)\n'
             '- keySpot (e.g., Baga Beach, Amber Palace, Solang Valley, Eiffel Tower)\n'
             'Your JSON response must match this schema:\n'
@@ -123,7 +154,53 @@ class AIService {
           }
 
           final decoded = jsonDecode(cleanJson.trim()) as Map<String, dynamic>;
-          if (decoded.containsKey('title') && decoded.containsKey('durationDays')) {
+          if (decoded.containsKey('error') && decoded['error'] != null) {
+            const encoder = JsonEncoder.withIndent('  ');
+            return AIExecutionResult(
+              isLiveApi: true,
+              modelUsed: modelName,
+              latencyMs: stopwatch.elapsedMilliseconds,
+              rawPrompt: prompt,
+              rawJsonResponse: encoder.convert(decoded),
+              parsedData: decoded,
+              errorMessage: decoded['error']?.toString() ?? 'Trip not found',
+            );
+          }
+
+          final liveDest = decoded['destination'] as String?;
+          if (liveDest == null || !TravelCatalog.isSupported(liveDest)) {
+            final notFoundData = <String, dynamic>{
+              'error': 'Trip not found',
+              'destination': null,
+            };
+            const encoder = JsonEncoder.withIndent('  ');
+            return AIExecutionResult(
+              isLiveApi: true,
+              modelUsed: modelName,
+              latencyMs: stopwatch.elapsedMilliseconds,
+              rawPrompt: prompt,
+              rawJsonResponse: encoder.convert(notFoundData),
+              parsedData: notFoundData,
+              errorMessage: 'Trip not found',
+            );
+          }
+
+          if (decoded.containsKey('title')) {
+            // Ensure durationDays is present and respects explicit user prompt
+            final explicitDays = extractDurationDays(prompt);
+            if (explicitDays != null) {
+              decoded['durationDays'] = explicitDays;
+            } else if (decoded.containsKey('durationDays') && decoded['durationDays'] != null) {
+              final raw = decoded['durationDays'];
+              if (raw is num) {
+                decoded['durationDays'] = raw.toInt().clamp(1, 7);
+              } else if (raw is String) {
+                decoded['durationDays'] = extractDurationDays(raw) ?? 3;
+              }
+            } else {
+              decoded['durationDays'] = 3;
+            }
+
             const encoder = JsonEncoder.withIndent('  ');
             return AIExecutionResult(
               isLiveApi: true,
@@ -137,10 +214,10 @@ class AIService {
         }
       } catch (e) {
         stopwatch.stop();
-        // ignore: avoid_print
-        print('[AIService] Gemini API error: $e. Falling back to local smart parser.');
+        debugPrint('[AIService] Gemini API notice: $e. Using smart local parser.');
         final fallbackPlan = _buildFallbackPlan(prompt);
         const encoder = JsonEncoder.withIndent('  ');
+        final isNotFound = fallbackPlan.containsKey('error') || fallbackPlan['destination'] == null;
         return AIExecutionResult(
           isLiveApi: false,
           modelUsed: modelName,
@@ -148,7 +225,7 @@ class AIService {
           rawPrompt: prompt,
           rawJsonResponse: encoder.convert(fallbackPlan),
           parsedData: fallbackPlan,
-          errorMessage: e.toString(),
+          errorMessage: isNotFound ? 'Trip not found' : e.toString(),
         );
       }
     }
@@ -156,6 +233,7 @@ class AIService {
     stopwatch.stop();
     final fallbackPlan = _buildFallbackPlan(prompt);
     const encoder = JsonEncoder.withIndent('  ');
+    final isNotFound = fallbackPlan.containsKey('error') || fallbackPlan['destination'] == null;
     return AIExecutionResult(
       isLiveApi: false,
       modelUsed: 'Local Heuristic Engine',
@@ -163,7 +241,9 @@ class AIService {
       rawPrompt: prompt,
       rawJsonResponse: encoder.convert(fallbackPlan),
       parsedData: fallbackPlan,
-      errorMessage: apiKey.isEmpty ? 'No API Key configured' : null,
+      errorMessage: isNotFound
+          ? 'Trip not found'
+          : (apiKey.isEmpty ? 'No API Key configured' : null),
     );
   }
 
@@ -214,29 +294,127 @@ class AIService {
     }
   }
 
-  /// Generates a realistic mock itinerary based on keywords in the prompt.
-  Map<String, dynamic> _buildFallbackPlan(String prompt) {
+  /// Extracts the exact unclamped number of days requested in the prompt.
+  /// Handles digits (14 days), weeks (2 weeks = 14 days), months (1 month = 30 days),
+  /// words ("fourteen days"), and nights.
+  static int? extractRawDurationDays(String prompt) {
+    if (prompt.trim().isEmpty) return null;
     final lower = prompt.toLowerCase();
 
-    // 1. Destination Extraction
-    String destination = 'Paris';
-    if (lower.contains('tokyo') || lower.contains('japan')) {
-      destination = 'Tokyo';
-    } else if (lower.contains('swiss') || lower.contains('alps') || lower.contains('zermatt')) {
-      destination = 'Swiss Alps';
-    } else if (lower.contains('rome') || lower.contains('italy')) {
-      destination = 'Rome';
-    } else if (lower.contains('goa')) {
-      destination = 'Goa';
-    } else if (lower.contains('jaipur') || lower.contains('rajasthan')) {
-      destination = 'Jaipur';
-    } else if (lower.contains('manali') || lower.contains('himachal')) {
-      destination = 'Manali';
-    } else if (lower.contains('kerala') || lower.contains('munnar') || lower.contains('alleppey')) {
-      destination = 'Kerala';
-    } else if (lower.contains('paris') || lower.contains('france')) {
-      destination = 'Paris';
+    // 1. Check for weeks / months: "2 weeks", "two weeks", "1 month"
+    final weekMatch = RegExp(
+      r'(\d+)\s*[-–—]?\s*(?:weeks?|wk\b)',
+      caseSensitive: false,
+    ).firstMatch(prompt);
+    if (weekMatch != null) {
+      final w = int.tryParse(weekMatch.group(1)!);
+      if (w != null && w > 0) return w * 7;
     }
+
+    final wordWeekMatch = RegExp(
+      r'\b(one|two|three|four|five|six)\s*[-–—]?\s*(?:weeks?|wk\b)',
+      caseSensitive: false,
+    ).firstMatch(prompt);
+    if (wordWeekMatch != null) {
+      const weekWords = {'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5, 'six': 6};
+      final w = weekWords[wordWeekMatch.group(1)!.toLowerCase()];
+      if (w != null) return w * 7;
+    }
+
+    if (lower.contains('a month') || lower.contains('one month') || lower.contains('1 month')) {
+      return 30;
+    }
+
+    // 2. Check for digits with days/d or hyphens: "14-day", "14 days", "14d", "10 days"
+    final digitMatch = RegExp(
+      r'(\d+)\s*[-–—]?\s*(?:days?|d\b)',
+      caseSensitive: false,
+    ).firstMatch(prompt);
+    if (digitMatch != null) {
+      final parsed = int.tryParse(digitMatch.group(1)!);
+      if (parsed != null && parsed > 0) {
+        return parsed;
+      }
+    }
+
+    // 3. Check for English word numbers
+    final wordMatch = RegExp(
+      r'\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|twenty)\s*[-–—]?\s*(?:days?|d\b)',
+      caseSensitive: false,
+    ).firstMatch(prompt);
+    if (wordMatch != null) {
+      const words = {
+        'one': 1,
+        'two': 2,
+        'three': 3,
+        'four': 4,
+        'five': 5,
+        'six': 6,
+        'seven': 7,
+        'eight': 8,
+        'nine': 9,
+        'ten': 10,
+        'eleven': 11,
+        'twelve': 12,
+        'thirteen': 13,
+        'fourteen': 14,
+        'fifteen': 15,
+        'twenty': 20,
+      };
+      final word = wordMatch.group(1)!.toLowerCase();
+      if (words.containsKey(word)) {
+        return words[word]!;
+      }
+    }
+
+    // 4. Check for nights
+    final nightMatch = RegExp(
+      r'(\d+)\s*[-–—]?\s*nights?',
+      caseSensitive: false,
+    ).firstMatch(prompt);
+    if (nightMatch != null) {
+      final parsed = int.tryParse(nightMatch.group(1)!);
+      if (parsed != null && parsed > 0) {
+        return parsed;
+      }
+    }
+
+    // 5. Keywords
+    if (lower.contains('long weekend')) return 3;
+    if (lower.contains('weekend')) return 2;
+    if (lower.contains('one week') || lower.contains('1 week') || lower.contains('a week')) return 7;
+
+    return null;
+  }
+
+  /// Robustly extracts duration in days from user prompt or duration string clamped to 1..7.
+  static int? extractDurationDays(String prompt) {
+    final raw = extractRawDurationDays(prompt);
+    if (raw == null) return null;
+    return raw.clamp(1, maxSupportedDays);
+  }
+
+  /// Generates a realistic mock itinerary based on keywords in the prompt.
+  Map<String, dynamic> _buildFallbackPlan(String prompt) {
+    // 0. High duration check (> 7 days)
+    final rawDays = extractRawDurationDays(prompt);
+    if (rawDays != null && rawDays > maxSupportedDays) {
+      return {
+        'error': maxDurationMessage,
+        'destination': null,
+      };
+    }
+
+    final lower = prompt.toLowerCase();
+    // 1. Destination Extraction: must match a supported destination catalog
+    final destination = TravelCatalog.matchDestination(prompt);
+    if (destination == null) {
+      return {
+        'error': 'Trip not found',
+        'destination': null,
+      };
+    }
+
 
     // 2. Transport Mode Extraction
     String transportMode = 'Train';
@@ -272,14 +450,8 @@ class AIService {
       keySpot = 'Alleppey Backwaters';
     }
 
-    // 4. Duration Extraction
-    int durationDays = 3;
-    final match = RegExp(r'(\d+)\s*(?:day|days)', caseSensitive: false).firstMatch(prompt);
-    if (match != null) {
-      durationDays = int.tryParse(match.group(1) ?? '3') ?? 3;
-      if (durationDays < 1) durationDays = 1;
-      if (durationDays > 7) durationDays = 7;
-    }
+    // 4. Duration Extraction (supports "4-day", "4 days", "four days", "4d", etc.)
+    final durationDays = extractDurationDays(prompt) ?? 3;
 
     // Title
     String title = '$destination Trip';
